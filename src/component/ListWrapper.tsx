@@ -27,7 +27,7 @@ function ListWrapper() {
     unrankedItemIds: ["item1", "item2", "item3", "item5", "item6", "item7", "item8", "item9", "item10"], // 初始化 unrankedItemIds 為空陣列
   });
   return (
-    <div className="list-wrapper">
+    <div className="w-full flex flex-col md:flex-row box-border gap-0 md:gap-4">
       <TierContainer tiers={state.tiers} items={state.items} />
       <UnrankedList items={state.items} unrankedItemIds={state.unrankedItemIds} />
     </div>
