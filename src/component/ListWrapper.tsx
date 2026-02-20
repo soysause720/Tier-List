@@ -1,5 +1,8 @@
 import {
   closestCenter,
+  pointerWithin,
+  type CollisionDetection,
+  type Modifier,
   DndContext,
   DragOverlay,
   MeasuringStrategy,
@@ -10,7 +13,7 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import { useReducer, useState } from "react";
+import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import type { TierListState, Item } from "../Types";
 import TierContainer from "./TierContainer";
 import UnrankedList from "./UnrankedList";
@@ -20,6 +23,16 @@ import {
   UNRANKED_CONTAINER_ID,
   UNRANKED_DROP_ID,
 } from "../utils/dndIds";
+
+// 優先用 pointerWithin（游標是否在範圍內）偵測放置目標，
+// 解決 closestCenter 在空容器左半邊無法觸發的問題
+const customCollisionDetection: CollisionDetection = (args) => {
+  const pointerHits = pointerWithin(args);
+  if (pointerHits.length > 0) {
+    return pointerHits;
+  }
+  return closestCenter(args);
+};
 
 function findContainerByItemId(state: TierListState, itemId: string): string | null {
   if (state.unrankedItemIds.includes(itemId)) {
@@ -54,32 +67,45 @@ type Action =
 
 const initialState: TierListState = {
   tiers: [
-    { id: "1", name: "夯", color: "#e83426", itemIds: ["item4"] },
-    { id: "2", name: "顶级", color: "#f3c645", itemIds: [] },
-    { id: "3", name: "人上人", color: "#fffa00", itemIds: [] },
-    { id: "4", name: "NPC", color: "#faefcf", itemIds: [] },
-    { id: "5", name: "拉完了", color: "#ffffff", itemIds: [] },
+    { id: "f47ac10b-58cc-4372-a567-0e02b2c3d479", name: "夯", color: "#e83426", itemIds: ["b8c9d0e1-f2a3-4567-bcde-678901234567"] },
+    { id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890", name: "顶级", color: "#f3c645", itemIds: [] },
+    { id: "b2c3d4e5-f6a7-8901-bcde-f12345678901", name: "人上人", color: "#fffa00", itemIds: [] },
+    { id: "c3d4e5f6-a7b8-9012-cdef-123456789012", name: "NPC", color: "#faefcf", itemIds: [] },
+    { id: "d4e5f6a7-b8c9-0123-defa-234567890123", name: "拉完了", color: "#ffffff", itemIds: [] },
   ],
   items: {
-    item1: { id: "item1", content: "高松燈"},
-    item2: { id: "item2", content: "千早愛音" },
-    item3: { id: "item3", content: "長崎爽世" },
-    item4: { id: "item4", content: "要樂奈" },
-    item5: { id: "item5", content: "椎名立希" },
-    item6: { id: "item6", content: "三角初華" },
-    item7: { id: "item7", content: "豐川祥子" },
-    item8: { id: "item8", content: "八幡海鈴" },
-    item9: { id: "item9", content: "若葉睦" },
-    item10: { id: "item10", content: "祐天寺若麥" },
+    "e5f6a7b8-c9d0-1234-efab-345678901234": { id: "e5f6a7b8-c9d0-1234-efab-345678901234", content: "高松燈" },
+    "f6a7b8c9-d0e1-2345-fabc-456789012345": { id: "f6a7b8c9-d0e1-2345-fabc-456789012345", content: "千早愛音" },
+    "a7b8c9d0-e1f2-3456-abcd-567890123456": { id: "a7b8c9d0-e1f2-3456-abcd-567890123456", content: "長崎爽世" },
+    "b8c9d0e1-f2a3-4567-bcde-678901234567": { id: "b8c9d0e1-f2a3-4567-bcde-678901234567", content: "要樂奈" },
+    "c9d0e1f2-a3b4-5678-cdef-789012345678": { id: "c9d0e1f2-a3b4-5678-cdef-789012345678", content: "椎名立希" },
+    "d0e1f2a3-b4c5-6789-defa-890123456789": { id: "d0e1f2a3-b4c5-6789-defa-890123456789", content: "三角初華" },
+    "e1f2a3b4-c5d6-7890-efab-901234567890": { id: "e1f2a3b4-c5d6-7890-efab-901234567890", content: "豐川祥子" },
+    "f2a3b4c5-d6e7-8901-fabc-012345678901": { id: "f2a3b4c5-d6e7-8901-fabc-012345678901", content: "八幡海鈴" },
+    "a3b4c5d6-e7f8-9012-abcd-123456789012": { id: "a3b4c5d6-e7f8-9012-abcd-123456789012", content: "若葉睦" },
+    "b4c5d6e7-f8a9-0123-bcde-234567890123": { id: "b4c5d6e7-f8a9-0123-bcde-234567890123", content: "祐天寺若麥" },
   },
-  unrankedItemIds: ["item1", "item2", "item3", "item5", "item6", "item7", "item8", "item9", "item10"],
+  unrankedItemIds: [
+    "e5f6a7b8-c9d0-1234-efab-345678901234",
+    "f6a7b8c9-d0e1-2345-fabc-456789012345",
+    "a7b8c9d0-e1f2-3456-abcd-567890123456",
+    "c9d0e1f2-a3b4-5678-cdef-789012345678",
+    "d0e1f2a3-b4c5-6789-defa-890123456789",
+    "e1f2a3b4-c5d6-7890-efab-901234567890",
+    "f2a3b4c5-d6e7-8901-fabc-012345678901",
+    "a3b4c5d6-e7f8-9012-abcd-123456789012",
+    "b4c5d6e7-f8a9-0123-bcde-234567890123",
+  ],
 };
 
 function reducer(state: TierListState, action: Action): TierListState {
   switch (action.type) {
     case "ADD_ITEM": {
+      // 空字串防呆（UI 層已擋，reducer 層作為最後防線）
+      const content = action.payload.content.trim();
+      if (!content) return state;
       const id = crypto.randomUUID();
-      const newItem: Item = { id, content: action.payload.content };
+      const newItem: Item = { id, content };
       return {
         ...state,
         items: { ...state.items, [id]: newItem },
@@ -88,6 +114,8 @@ function reducer(state: TierListState, action: Action): TierListState {
     }
     case "DELETE_ITEM": {
       const { itemId } = action.payload;
+      // item 不存在時直接回傳（防止重複刪除）
+      if (!state.items[itemId]) return state;
       // 移除 items
       const newItems = { ...state.items };
       delete newItems[itemId];
@@ -108,6 +136,8 @@ function reducer(state: TierListState, action: Action): TierListState {
     case "MOVE_ITEM": {
       const { itemId, from, to } = action.payload;
 
+      // item 不存在或來源目的地相同時不處理
+      if (!state.items[itemId]) return state;
       if (from === to) {
         return state;
       }
@@ -144,9 +174,9 @@ function reducer(state: TierListState, action: Action): TierListState {
     case "REORDER_ITEM": {
       const { itemId, overId } = action.payload;
 
-      if (itemId === overId) {
-        return state;
-      }
+      // 相同 id 或任一 item 不存在時不處理
+      if (itemId === overId) return state;
+      if (!state.items[itemId] || !state.items[overId]) return state;
 
       const unrankedFromIndex = state.unrankedItemIds.indexOf(itemId);
       const unrankedToIndex = state.unrankedItemIds.indexOf(overId);
@@ -191,16 +221,65 @@ function reducer(state: TierListState, action: Action): TierListState {
   }
 }
 
+const STORAGE_KEY = "tier-list-state";
+
+function isValidState(data: unknown): data is TierListState {
+  if (!data || typeof data !== "object") return false;
+  const s = data as Record<string, unknown>;
+  return (
+    Array.isArray(s.tiers) &&
+    typeof s.items === "object" &&
+    s.items !== null &&
+    Array.isArray(s.unrankedItemIds)
+  );
+}
+
+function loadFromStorage(): TierListState | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const parsed: unknown = JSON.parse(raw);
+    if (!isValidState(parsed)) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
 function ListWrapper() {
-  const [state, dispatch] = useReducer(reducer, initialState);
+  // lazy initializer: 先讀 localStorage，讀不到再用 initialState
+  const [state, dispatch] = useReducer(reducer, undefined, () => loadFromStorage() ?? initialState);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  // state 變動時自動儲存到 localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    } catch {
+      // 空間不足時靜默失敗，不影響操作
+    }
+  }, [state]);
+
+  // 限制 DragOverlay 的視覺移動範圍在 ListWrapper 內
+  const restrictToWrapper = useCallback<Modifier>(({ draggingNodeRect, transform }) => {
+    if (!draggingNodeRect || !wrapperRef.current) return transform;
+
+    const rect = wrapperRef.current.getBoundingClientRect();
+
+    return {
+      ...transform,
+      x: Math.min(Math.max(transform.x, rect.left - draggingNodeRect.left), rect.right - draggingNodeRect.right),
+      y: Math.min(Math.max(transform.y, rect.top - draggingNodeRect.top), rect.bottom - draggingNodeRect.bottom),
+    };
+  }, []);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: { distance: 8 },
     }),
     useSensor(TouchSensor, {
-      activationConstraint: { delay: 180, tolerance: 8 },
+      activationConstraint: { delay: 150, tolerance: 8 },
     }),
   );
 
@@ -260,7 +339,7 @@ function ListWrapper() {
   return (
     <DndContext
       sensors={sensors}
-      collisionDetection={closestCenter}
+      collisionDetection={customCollisionDetection}
       measuring={{
         droppable: {
           strategy: MeasuringStrategy.Always,
@@ -271,13 +350,13 @@ function ListWrapper() {
       onDragEnd={handleDragEnd}
       onDragCancel={handleDragCancel}
     >
-      <div className="mx-auto flex justify-center w-full min-w-0 max-w-400 flex-col items-center gap-4 p-3 md:gap-5 md:p-4 split:flex-row split:items-start split:gap-6 split:p-5">
+      <div ref={wrapperRef} className="mx-auto flex justify-center w-full min-w-0 max-w-400 flex-col items-center gap-4 p-3 md:gap-5 md:p-4 split:flex-row split:items-start split:gap-6 split:p-5">
         <TierContainer tiers={state.tiers} items={state.items} onDeleteItem={handleDeleteItem} />
         <UnrankedList items={state.items} unrankedItemIds={state.unrankedItemIds} onAddItem={handleAddItem} onDeleteItem={handleDeleteItem} />
       </div>
-      <DragOverlay dropAnimation={null}>
+      <DragOverlay dropAnimation={null} modifiers={[restrictToWrapper]}>
         {activeItem ? (
-          <div className="cursor-grabbing">
+          <div className="rotate-1 scale-105 cursor-grabbing drop-shadow-xl">
             <ItemComponent item={activeItem} />
           </div>
         ) : null}
