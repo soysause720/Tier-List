@@ -1,1 +1,5 @@
 @import "tailwindcss";
+
+@theme {
+	--breakpoint-split: 75rem;
+}
