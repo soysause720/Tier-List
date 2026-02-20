@@ -33,7 +33,7 @@ function TierRow({ tier, items, onDeleteItem }: TierRowProps) {
       >
         {tier.name}
       </div>
-      <div ref={setNodeRef} className="flex min-w-0 flex-1 flex-wrap content-center items-center justify-start gap-1 bg-[#c5c5c5] p-2 md:gap-2 md:p-3">
+      <div ref={setNodeRef} className="flex min-w-0 flex-1 flex-wrap content-start items-start justify-start gap-1 bg-[#c5c5c5] p-2 md:gap-2 md:p-3">
         <SortableContext items={tier.itemIds} strategy={rectSortingStrategy}>
           {tier.itemIds.map((itemId) => {
             const item = items[itemId];

@@ -2,9 +2,10 @@ import {
   closestCenter,
   DndContext,
   DragOverlay,
+  MeasuringStrategy,
   PointerSensor,
   TouchSensor,
-  type DragEndEvent,
+  type DragOverEvent,
   type DragStartEvent,
   useSensor,
   useSensors,
@@ -215,40 +216,38 @@ function ListWrapper() {
     setActiveId(String(event.active.id));
   };
 
-  const handleDragEnd = (event: DragEndEvent) => {
-    const activeItemId = String(event.active.id);
-    const overId = event.over ? String(event.over.id) : null;
+  // 在拖曳過程中即時更新 state，讓瀏覽器 flex layout 自然處理不同大小的項目
+  const handleDragOver = (event: DragOverEvent) => {
+    const { active, over } = event;
+    if (!over) return;
 
-    if (!overId || activeItemId === overId) {
-      setActiveId(null);
-      return;
-    }
+    const activeItemId = String(active.id);
+    const overId = String(over.id);
 
-    const fromContainerId = findContainerByItemId(state, activeItemId);
-    const toContainerId = findContainerByItemId(state, overId) ?? findContainerByDropId(state, overId);
+    if (activeItemId === overId) return;
 
-    if (!fromContainerId || !toContainerId) {
-      setActiveId(null);
-      return;
-    }
+    const fromContainer = findContainerByItemId(state, activeItemId);
+    const overIsContainer = !!findContainerByDropId(state, overId);
+    const toContainer = overIsContainer
+      ? findContainerByDropId(state, overId)!
+      : findContainerByItemId(state, overId);
 
-    if (fromContainerId === toContainerId) {
-      if (findContainerByDropId(state, overId)) {
-        setActiveId(null);
-        return;
-      }
+    if (!fromContainer || !toContainer) return;
 
+    if (fromContainer !== toContainer) {
+      dispatch({
+        type: "MOVE_ITEM",
+        payload: { itemId: activeItemId, from: fromContainer, to: toContainer },
+      });
+    } else if (!overIsContainer) {
       dispatch({
         type: "REORDER_ITEM",
         payload: { itemId: activeItemId, overId },
       });
-    } else {
-      dispatch({
-        type: "MOVE_ITEM",
-        payload: { itemId: activeItemId, from: fromContainerId, to: toContainerId },
-      });
     }
+  };
 
+  const handleDragEnd = () => {
     setActiveId(null);
   };
 
@@ -262,7 +261,13 @@ function ListWrapper() {
     <DndContext
       sensors={sensors}
       collisionDetection={closestCenter}
+      measuring={{
+        droppable: {
+          strategy: MeasuringStrategy.Always,
+        },
+      }}
       onDragStart={handleDragStart}
+      onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
       onDragCancel={handleDragCancel}
     >
@@ -270,9 +275,9 @@ function ListWrapper() {
         <TierContainer tiers={state.tiers} items={state.items} onDeleteItem={handleDeleteItem} />
         <UnrankedList items={state.items} unrankedItemIds={state.unrankedItemIds} onAddItem={handleAddItem} onDeleteItem={handleDeleteItem} />
       </div>
-      <DragOverlay>
+      <DragOverlay dropAnimation={null}>
         {activeItem ? (
-          <div className="pointer-events-none">
+          <div className="cursor-grabbing">
             <ItemComponent item={activeItem} />
           </div>
         ) : null}

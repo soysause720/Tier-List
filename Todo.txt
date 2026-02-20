@@ -1,0 +1,67 @@
+🚩 Phase 1 — 架構穩定期（先把地基打好）
+✅ 1.將 ListWrapper 從 useState 重構為 useReducer
+✅ 2.建立完整 reducer（ADD / DELETE 基本功能）
+✅ 3.完成 CreateForm（可新增 Item 到 unranked）
+✅ 4.完成刪除功能（含從各容器正確移除）
+
+👉 這階段目標：
+「不靠拖曳，也能完整新增與刪除」
+
+🚩 Phase 2 — 拖曳基礎建設
+✅ 5.安裝並設定 dnd-kit 基本結構（DndContext）
+✅ 6.讓 Item 可以被拖曳（但不處理排序）
+✅ 7.設定各 Tier 與 Unranked 為 Droppable
+✅ 8.實作跨容器移動（MOVE_ITEM）
+
+👉 這階段目標：
+「可以拖到別的 Tier，但還不能精準排序」
+
+🚩 Phase 3 — 排序系統
+✅ 9.加入 SortableContext
+✅ 10.實作同容器內排序（REORDER_ITEM）
+✅ 11.處理空 Tier 可放入邏輯
+✅ 12.加入 DragOverlay
+
+👉 這階段目標：
+「拖曳排序完整可用」
+
+🚩 Phase 4 — 穩定化與優化
+⬜ 13.限制拖曳範圍在 ListWrapper
+⬜ 14.優化拖曳動畫與體驗
+⬜ 15.確保手機拖曳正常（已加 TouchSensor，待實機驗證）
+✅ 16.檢查所有 key 使用穩定 id
+
+👉 這階段目標：
+「拖曳體驗自然流暢」
+
+🚩 Phase 5 — 試作版完成強化
+⬜ 17.加入 localStorage 自動儲存
+⬜ 18.加入初始化 LOAD_STATE
+⬜ 19.加入基本錯誤防護（空字串 / 重複操作防呆）
+
+👉 這階段目標：
+「重新整理頁面不會消失」
+
+🚩 Phase 6 — 圖片功能
+⬜ 20.修改 Item 結構支援 imageUrl
+⬜ 21.加入圖片上傳（前端暫存）
+⬜ 22.圖片自動尺寸調整
+⬜ 23.加入是否顯示文字切換
+
+👉 這階段目標：
+「Item 可用圖片呈現」
+
+🚩 Phase 7 — 截圖功能
+
+⬜ 24.建立固定尺寸 hidden TierContainer
+⬜ 25.串接 html2canvas
+⬜ 26.強制輸出固定電腦尺寸
+
+👉 這階段目標：
+「可匯出圖片」
+
+🚩 Phase 8 — 未來擴充（暫緩）
+⬜ 27.Supabase 專案建立
+⬜ 28.Schema 設計
+⬜ 29.登入系統
+⬜ 30.儲存 / 讀取 TierList
