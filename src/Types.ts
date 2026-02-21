@@ -4,6 +4,7 @@ export type TierId = string
 export type Item = {
   id: ItemId
   content: string
+  imageUrl?: string
 }
 
 export type Tier = {

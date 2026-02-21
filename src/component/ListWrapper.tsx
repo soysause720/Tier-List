@@ -59,7 +59,7 @@ function findContainerByDropId(state: TierListState, dropId: string): string | n
 
 // Action 型別
 type Action =
-  | { type: "ADD_ITEM"; payload: { content: string } }
+  | { type: "ADD_ITEM"; payload: { content: string; imageUrl?: string } }
   | { type: "DELETE_ITEM"; payload: { itemId: string } }
   | { type: "MOVE_ITEM"; payload: { itemId: string; from: string; to: string } }
   | { type: "REORDER_ITEM"; payload: { itemId: string; overId: string } }
@@ -101,11 +101,12 @@ const initialState: TierListState = {
 function reducer(state: TierListState, action: Action): TierListState {
   switch (action.type) {
     case "ADD_ITEM": {
-      // 空字串防呆（UI 層已擋，reducer 層作為最後防線）
+      // 內容與圖片至少需要其一（UI 層已擋，reducer 層作為最後防線）
       const content = action.payload.content.trim();
-      if (!content) return state;
+      const imageUrl = action.payload.imageUrl;
+      if (!content && !imageUrl) return state;
       const id = crypto.randomUUID();
-      const newItem: Item = { id, content };
+      const newItem: Item = { id, content, ...(imageUrl ? { imageUrl } : {}) };
       return {
         ...state,
         items: { ...state.items, [id]: newItem },
@@ -250,6 +251,7 @@ function ListWrapper() {
   // lazy initializer: 先讀 localStorage，讀不到再用 initialState
   const [state, dispatch] = useReducer(reducer, undefined, () => loadFromStorage() ?? initialState);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [showImageLabel, setShowImageLabel] = useState(true);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   // state 變動時自動儲存到 localStorage
@@ -283,8 +285,8 @@ function ListWrapper() {
     }),
   );
 
-  const handleAddItem = (content: string) => {
-    dispatch({ type: "ADD_ITEM", payload: { content } });
+  const handleAddItem = (content: string, imageUrl?: string) => {
+    dispatch({ type: "ADD_ITEM", payload: { content, imageUrl } });
   };
 
   const handleDeleteItem = (itemId: string) => {
@@ -351,8 +353,8 @@ function ListWrapper() {
       onDragCancel={handleDragCancel}
     >
       <div ref={wrapperRef} className="mx-auto flex justify-center w-full min-w-0 max-w-400 flex-col items-center gap-4 p-3 md:gap-5 md:p-4 split:flex-row split:items-start split:gap-6 split:p-5">
-        <TierContainer tiers={state.tiers} items={state.items} onDeleteItem={handleDeleteItem} />
-        <UnrankedList items={state.items} unrankedItemIds={state.unrankedItemIds} onAddItem={handleAddItem} onDeleteItem={handleDeleteItem} />
+        <TierContainer tiers={state.tiers} items={state.items} onDeleteItem={handleDeleteItem} showImageLabel={showImageLabel} />
+        <UnrankedList items={state.items} unrankedItemIds={state.unrankedItemIds} onAddItem={handleAddItem} onDeleteItem={handleDeleteItem} showImageLabel={showImageLabel} onToggleImageLabel={() => setShowImageLabel((v) => !v)} />
       </div>
       <DragOverlay dropAnimation={null} modifiers={[restrictToWrapper]}>
         {activeItem ? (

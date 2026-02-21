@@ -6,13 +6,14 @@ import ItemComponent from "./ItemComponent";
 type SortableItemProps = {
   item: Item;
   onDeleteItem: (itemId: string) => void;
+  showImageLabel: boolean;
 };
 
 // pointer: coarse = 手機/平板等觸控裝置
 const isTouchDevice =
   typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
 
-function SortableItem({ item, onDeleteItem }: SortableItemProps) {
+function SortableItem({ item, onDeleteItem, showImageLabel }: SortableItemProps) {
   const [isActive, setIsActive] = useState(false);
 
   const { attributes, listeners, setNodeRef, isDragging } = useSortable({
@@ -44,7 +45,7 @@ function SortableItem({ item, onDeleteItem }: SortableItemProps) {
         <div className="absolute inset-0 rounded border-2 border-dashed border-zinc-400/60 bg-zinc-200/40" />
       )}
       <div className={isDragging ? "opacity-0" : ""}>
-        <ItemComponent item={item} onDelete={onDeleteItem} isActive={isActive} />
+        <ItemComponent item={item} onDelete={onDeleteItem} isActive={isActive} showImageLabel={showImageLabel} />
       </div>
     </div>
   );

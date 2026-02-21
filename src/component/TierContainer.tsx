@@ -8,17 +8,17 @@ type TierContainerProps = {
   tiers: Tier[];
   items: Record<string, Item>;
   onDeleteItem: (itemId: string) => void;
-  // 之後你可以加 moveItem 或其他事件
-  // moveItem?: (itemId: string, sourceTierId: string, targetTierId: string) => void;
+  showImageLabel: boolean;
 };
 
 type TierRowProps = {
   tier: Tier;
   items: Record<string, Item>;
   onDeleteItem: (itemId: string) => void;
+  showImageLabel: boolean;
 };
 
-function TierRow({ tier, items, onDeleteItem }: TierRowProps) {
+function TierRow({ tier, items, onDeleteItem, showImageLabel }: TierRowProps) {
   const dropId = makeTierDropId(tier.id);
   const { setNodeRef } = useDroppable({ id: dropId });
 
@@ -33,11 +33,11 @@ function TierRow({ tier, items, onDeleteItem }: TierRowProps) {
       >
         {tier.name}
       </div>
-      <div ref={setNodeRef} className="flex min-w-0 flex-1 flex-wrap content-start items-start justify-start gap-1 bg-[#c5c5c5] p-2 md:gap-2 md:p-3">
+      <div ref={setNodeRef} className="flex min-w-0 flex-1 flex-wrap content-start items-start justify-start bg-[#c5c5c5] gap-1 p-1 split:p-2">
         <SortableContext items={tier.itemIds} strategy={rectSortingStrategy}>
           {tier.itemIds.map((itemId) => {
             const item = items[itemId];
-            return <SortableItem key={item.id} item={item} onDeleteItem={onDeleteItem} />;
+            return <SortableItem key={item.id} item={item} onDeleteItem={onDeleteItem} showImageLabel={showImageLabel} />;
           })}
         </SortableContext>
       </div>
@@ -45,11 +45,11 @@ function TierRow({ tier, items, onDeleteItem }: TierRowProps) {
   );
 }
 
-function TierContainer({ tiers, items, onDeleteItem }: TierContainerProps) {
+function TierContainer({ tiers, items, onDeleteItem, showImageLabel }: TierContainerProps) {
   return (  
     <div className="flex w-full max-w-180 flex-col overflow-hidden rounded-md bg-white/60 p-2 split:p-3 split:max-w-210 split:flex-none xl:w-245">
       {tiers.map((tier) => (
-        <TierRow key={tier.id} tier={tier} items={items} onDeleteItem={onDeleteItem} />
+        <TierRow key={tier.id} tier={tier} items={items} onDeleteItem={onDeleteItem} showImageLabel={showImageLabel} />
       ))}
     </div>
   );
