@@ -352,9 +352,9 @@ function ListWrapper() {
       onDragEnd={handleDragEnd}
       onDragCancel={handleDragCancel}
     >
-      <div ref={wrapperRef} className="mx-auto flex justify-center w-full min-w-0 max-w-400 flex-col items-center gap-4 p-3 md:gap-5 md:p-4 split:flex-row split:items-start split:gap-6 split:p-5">
-        <TierContainer tiers={state.tiers} items={state.items} onDeleteItem={handleDeleteItem} showImageLabel={showImageLabel} />
-        <UnrankedList items={state.items} unrankedItemIds={state.unrankedItemIds} onAddItem={handleAddItem} onDeleteItem={handleDeleteItem} showImageLabel={showImageLabel} onToggleImageLabel={() => setShowImageLabel((v) => !v)} />
+      <div ref={wrapperRef} className="mx-auto flex justify-center w-full min-w-0 max-w-400 flex-col items-center gap-1 split:gap-5 p-2 split:flex-row split:items-start">
+        <TierContainer tiers={state.tiers} items={state.items} onDeleteItem={handleDeleteItem} showImageLabel={showImageLabel} onToggleImageLabel={() => setShowImageLabel((v) => !v)} />
+        <UnrankedList items={state.items} unrankedItemIds={state.unrankedItemIds} onAddItem={handleAddItem} onDeleteItem={handleDeleteItem} showImageLabel={showImageLabel} />
       </div>
       <DragOverlay dropAnimation={null} modifiers={[restrictToWrapper]}>
         {activeItem ? (
