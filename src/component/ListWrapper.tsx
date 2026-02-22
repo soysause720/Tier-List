@@ -62,8 +62,7 @@ type Action =
   | { type: "ADD_ITEM"; payload: { content: string; imageUrl?: string } }
   | { type: "DELETE_ITEM"; payload: { itemId: string } }
   | { type: "MOVE_ITEM"; payload: { itemId: string; from: string; to: string } }
-  | { type: "REORDER_ITEM"; payload: { itemId: string; overId: string } }
-  | { type: "LOAD_STATE"; payload: TierListState };
+  | { type: "REORDER_ITEM"; payload: { itemId: string; overId: string } };
 
 const initialState: TierListState = {
   tiers: [
@@ -214,9 +213,6 @@ function reducer(state: TierListState, action: Action): TierListState {
         tiers,
       };
     }
-    case "LOAD_STATE": {
-      return action.payload;
-    }
     default:
       return state;
   }
@@ -253,6 +249,8 @@ function ListWrapper() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [showImageLabel, setShowImageLabel] = useState(true);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  // 截圖目標：TierContainer 的 tier rows 區域
+  const screenshotRef = useRef<HTMLDivElement>(null);
 
   // state 變動時自動儲存到 localStorage
   useEffect(() => {
@@ -352,9 +350,11 @@ function ListWrapper() {
       onDragEnd={handleDragEnd}
       onDragCancel={handleDragCancel}
     >
-      <div ref={wrapperRef} className="mx-auto flex justify-center w-full min-w-0 max-w-400 flex-col items-center gap-1 split:gap-5 p-2 split:flex-row split:items-start">
-        <TierContainer tiers={state.tiers} items={state.items} onDeleteItem={handleDeleteItem} showImageLabel={showImageLabel} onToggleImageLabel={() => setShowImageLabel((v) => !v)} />
-        <UnrankedList items={state.items} unrankedItemIds={state.unrankedItemIds} onAddItem={handleAddItem} onDeleteItem={handleDeleteItem} showImageLabel={showImageLabel} />
+      <div className="@container w-full">
+        <div ref={wrapperRef} className="mx-auto flex justify-center w-full min-w-0 max-w-400 flex-col items-center gap-1 @split:gap-5 p-2 @split:flex-row @split:items-start">
+          <TierContainer tiers={state.tiers} items={state.items} onDeleteItem={handleDeleteItem} showImageLabel={showImageLabel} onToggleImageLabel={() => setShowImageLabel((v) => !v)} screenshotRef={screenshotRef} />
+          <UnrankedList items={state.items} unrankedItemIds={state.unrankedItemIds} onAddItem={handleAddItem} onDeleteItem={handleDeleteItem} showImageLabel={showImageLabel} />
+        </div>
       </div>
       <DragOverlay dropAnimation={null} modifiers={[restrictToWrapper]}>
         {activeItem ? (

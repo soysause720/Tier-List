@@ -33,11 +33,11 @@ function ItemComponent({ item, onDelete, isActive = false, showImageLabel = true
         <img
           src={item.imageUrl}
           alt={item.content || "圖片"}
-          className={`h-17 w-17 object-cover split:h-25 split:w-25 ${showImageLabel && item.content ? "rounded-t" : "rounded"}`}
+          className={`h-17 w-17 object-cover @split:h-25 @split:w-25 ${showImageLabel && item.content ? "rounded-t" : "rounded"}`}
           draggable={false}
         />
         {showImageLabel && item.content && (
-          <span className="w-full truncate px-1 py-0.5 text-center text-xs font-medium text-zinc-900 split:text-sm">
+          <span className="w-full truncate px-1 py-0.5 text-center text-xs font-medium text-zinc-900 @split:text-sm">
             {item.content}
           </span>
         )}
@@ -47,9 +47,9 @@ function ItemComponent({ item, onDelete, isActive = false, showImageLabel = true
 
   // 文字卡片樣式（原本設計）
   return (
-    <div className="group relative inline-flex max-w-full items-center justify-center rounded border border-zinc-300 bg-white px-3 py-2 text-base font-medium text-zinc-900 shadow-sm split:px-4 split:py-2.5 split:text-2xl">
+    <div className="group relative inline-flex max-w-full items-center justify-center rounded border border-zinc-300 bg-white px-3 py-2 text-base font-medium text-zinc-900 shadow-sm @split:px-4 @split:py-2.5 @split:text-2xl">
       {deleteButton}
-      <span>{item.content}</span>
+      <span className="whitespace-nowrap">{item.content}</span>
     </div>
   );
 }

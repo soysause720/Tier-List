@@ -51,11 +51,11 @@
 👉 這階段目標：
 「Item 可用圖片呈現」
 
-🚩 Phase 7 — 截圖功能
+🚩 Phase 7 — 截圖功能(使用modern-screenshot實現)
 
-⬜ 24.建立固定尺寸 hidden TierContainer
-⬜ 25.串接 html2canvas
-⬜ 26.強制輸出固定電腦尺寸
+✅ 24.準備要截圖的 DOM ref
+✅ 25.實作下載函式
+✅ 26.設定style 參數確保手機與電腦截圖一致(截圖都是電腦版型)
 
 👉 這階段目標：
 「可匯出圖片」
