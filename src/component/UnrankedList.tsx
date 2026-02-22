@@ -17,9 +17,9 @@ function UnrankedList({ items, unrankedItemIds, onAddItem, onDeleteItem, showIma
   const { setNodeRef } = useDroppable({ id: UNRANKED_DROP_ID });
 
   return (
-    <div className="flex w-full max-w-180 @split:max-w-120 flex-1 flex-col bg-white/60 p-3 @split:min-w-88">
+    <div className="flex w-full max-w-180 @split:max-w-120 flex-1 flex-col bg-white/60 px-2 py-1 @split:p-3 @split:min-w-65">
       <CreateForm onAddItem={onAddItem} />
-      <div ref={setNodeRef} className="flex min-h-32 min-w-0 flex-wrap content-start gap-1 rounded  bg-[#e6e3e3] p-2 @split:min-h-155 @split:gap-2 @split:p-3">
+      <div ref={setNodeRef} className="flex min-h-32 min-w-0 flex-wrap content-start gap-1 rounded  bg-[#e6e3e3] p-2 @split:min-h-151 @split:gap-2 @split:p-3">
         <SortableContext items={unrankedItemIds} strategy={rectSortingStrategy}>
           {unrankedItemIds.map((itemId) => {
             const item = items[itemId];

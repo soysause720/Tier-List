@@ -6,9 +6,11 @@ type ItemComponentProps = {
   onDelete?: (itemId: string) => void;
   isActive?: boolean;
   showImageLabel?: boolean;
+  /** DragOverlay 脫離 @container 時，強制使用大尺寸 */
+  large?: boolean;
 };
 
-function ItemComponent({ item, onDelete, isActive = false, showImageLabel = true }: ItemComponentProps) {
+function ItemComponent({ item, onDelete, isActive = false, showImageLabel = true, large = false }: ItemComponentProps) {
   const deleteButton = onDelete && (
     <button
       type="button"
@@ -16,7 +18,7 @@ function ItemComponent({ item, onDelete, isActive = false, showImageLabel = true
         e.stopPropagation();
         onDelete(item.id);
       }}
-      className={`absolute -right-2 -top-2 h-5 w-5 items-center justify-center rounded-full border border-zinc-300 bg-white text-xs leading-none text-zinc-700 shadow-sm transition hover:bg-red-500 hover:text-white ${
+      className={`absolute -right-2 -top-2 h-5 w-5 z-10 items-center justify-center rounded-full border border-zinc-300 bg-white text-xs leading-none text-zinc-700 shadow-sm transition hover:bg-red-500 hover:text-white ${
         isActive ? "flex" : "hidden group-hover:flex"
       }`}
       aria-label={`刪除 ${item.content}`}
@@ -28,12 +30,12 @@ function ItemComponent({ item, onDelete, isActive = false, showImageLabel = true
   // 圖片卡片樣式
   if (item.imageUrl) {
     return (
-      <div className="group relative flex flex-col items-center rounded border border-zinc-300 bg-white shadow-sm">
+      <div className="group relative flex flex-col items-center w-fit rounded border border-zinc-300 bg-white shadow-sm">
         {deleteButton}
         <img
           src={item.imageUrl}
           alt={item.content || "圖片"}
-          className={`h-17 w-17 object-cover @split:h-25 @split:w-25 ${showImageLabel && item.content ? "rounded-t" : "rounded"}`}
+          className={`object-cover ${large ? "h-25 w-25" : "h-17 w-17 @split:h-25 @split:w-25"} ${showImageLabel && item.content ? "rounded-t" : "rounded"}`}
           draggable={false}
         />
         {showImageLabel && item.content && (

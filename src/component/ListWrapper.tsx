@@ -23,6 +23,8 @@ import {
   UNRANKED_CONTAINER_ID,
   UNRANKED_DROP_ID,
 } from "../utils/dndIds";
+import exampleImg from "../assets/tier-list.png";
+import ciallo from "../assets/Ciallo.jpg";
 
 // 優先用 pointerWithin（游標是否在範圍內）偵測放置目標，
 // 解決 closestCenter 在空容器左半邊無法觸發的問題
@@ -66,34 +68,20 @@ type Action =
 
 const initialState: TierListState = {
   tiers: [
-    { id: "f47ac10b-58cc-4372-a567-0e02b2c3d479", name: "夯", color: "#e83426", itemIds: ["b8c9d0e1-f2a3-4567-bcde-678901234567"] },
+    { id: "f47ac10b-58cc-4372-a567-0e02b2c3d479", name: "夯", color: "#e83426", itemIds: ["e5f6a7b8-c9d0-1234-efab-345678901234"] },
     { id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890", name: "顶级", color: "#f3c645", itemIds: [] },
     { id: "b2c3d4e5-f6a7-8901-bcde-f12345678901", name: "人上人", color: "#fffa00", itemIds: [] },
-    { id: "c3d4e5f6-a7b8-9012-cdef-123456789012", name: "NPC", color: "#faefcf", itemIds: [] },
-    { id: "d4e5f6a7-b8c9-0123-defa-234567890123", name: "拉完了", color: "#ffffff", itemIds: [] },
+    { id: "c3d4e5f6-a7b8-9012-cdef-123456789012", name: "NPC", color: "#faefcf", itemIds: ["f6a7b8c9-d0e1-2345-fabc-456789012345"] },
+    { id: "d4e5f6a7-b8c9-0123-defa-234567890123", name: "拉完了", color: "#ffffff", itemIds: ["b8c9d0e1-f2a3-4567-bcde-678901234567"] },
   ],
   items: {
-    "e5f6a7b8-c9d0-1234-efab-345678901234": { id: "e5f6a7b8-c9d0-1234-efab-345678901234", content: "高松燈" },
-    "f6a7b8c9-d0e1-2345-fabc-456789012345": { id: "f6a7b8c9-d0e1-2345-fabc-456789012345", content: "千早愛音" },
-    "a7b8c9d0-e1f2-3456-abcd-567890123456": { id: "a7b8c9d0-e1f2-3456-abcd-567890123456", content: "長崎爽世" },
-    "b8c9d0e1-f2a3-4567-bcde-678901234567": { id: "b8c9d0e1-f2a3-4567-bcde-678901234567", content: "要樂奈" },
-    "c9d0e1f2-a3b4-5678-cdef-789012345678": { id: "c9d0e1f2-a3b4-5678-cdef-789012345678", content: "椎名立希" },
-    "d0e1f2a3-b4c5-6789-defa-890123456789": { id: "d0e1f2a3-b4c5-6789-defa-890123456789", content: "三角初華" },
-    "e1f2a3b4-c5d6-7890-efab-901234567890": { id: "e1f2a3b4-c5d6-7890-efab-901234567890", content: "豐川祥子" },
-    "f2a3b4c5-d6e7-8901-fabc-012345678901": { id: "f2a3b4c5-d6e7-8901-fabc-012345678901", content: "八幡海鈴" },
-    "a3b4c5d6-e7f8-9012-abcd-123456789012": { id: "a3b4c5d6-e7f8-9012-abcd-123456789012", content: "若葉睦" },
-    "b4c5d6e7-f8a9-0123-bcde-234567890123": { id: "b4c5d6e7-f8a9-0123-bcde-234567890123", content: "祐天寺若麥" },
+    "e5f6a7b8-c9d0-1234-efab-345678901234": { id: "e5f6a7b8-c9d0-1234-efab-345678901234", content: "", imageUrl: exampleImg },
+    "f6a7b8c9-d0e1-2345-fabc-456789012345": { id: "f6a7b8c9-d0e1-2345-fabc-456789012345", content: "點擊右上角的X即可刪除" },
+    "a7b8c9d0-e1f2-3456-abcd-567890123456": { id: "a7b8c9d0-e1f2-3456-abcd-567890123456", content: "Ciallo~", imageUrl: ciallo },
+    "b8c9d0e1-f2a3-4567-bcde-678901234567": { id: "b8c9d0e1-f2a3-4567-bcde-678901234567", content: "分享功能目前還未完成" },
   },
   unrankedItemIds: [
-    "e5f6a7b8-c9d0-1234-efab-345678901234",
-    "f6a7b8c9-d0e1-2345-fabc-456789012345",
     "a7b8c9d0-e1f2-3456-abcd-567890123456",
-    "c9d0e1f2-a3b4-5678-cdef-789012345678",
-    "d0e1f2a3-b4c5-6789-defa-890123456789",
-    "e1f2a3b4-c5d6-7890-efab-901234567890",
-    "f2a3b4c5-d6e7-8901-fabc-012345678901",
-    "a3b4c5d6-e7f8-9012-abcd-123456789012",
-    "b4c5d6e7-f8a9-0123-bcde-234567890123",
   ],
 };
 
@@ -248,9 +236,23 @@ function ListWrapper() {
   const [state, dispatch] = useReducer(reducer, undefined, () => loadFromStorage() ?? initialState);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [showImageLabel, setShowImageLabel] = useState(true);
+  const [isSplitLayout, setIsSplitLayout] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
   // 截圖目標：TierContainer 的 tier rows 區域
   const screenshotRef = useRef<HTMLDivElement>(null);
+
+  // 追蹤是否處於 split 布局（寬度 >= 75rem），供 DragOverlay 判斷圖片尺寸
+  useEffect(() => {
+    const el = wrapperRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(([entry]) => {
+      setIsSplitLayout(entry.contentRect.width >= 75 * 16);
+    });
+    observer.observe(el);
+    // 初始化一次
+    setIsSplitLayout(el.offsetWidth >= 75 * 16);
+    return () => observer.disconnect();
+  }, []);
 
   // state 變動時自動儲存到 localStorage
   useEffect(() => {
@@ -351,7 +353,7 @@ function ListWrapper() {
       onDragCancel={handleDragCancel}
     >
       <div className="@container w-full">
-        <div ref={wrapperRef} className="mx-auto flex justify-center w-full min-w-0 max-w-400 flex-col items-center gap-1 @split:gap-5 p-2 @split:flex-row @split:items-start">
+        <div ref={wrapperRef} className="mx-auto flex justify-center w-full min-w-0 max-w-400 flex-col items-center gap-0 @split:gap-5 p-2 @split:flex-row @split:items-start">
           <TierContainer tiers={state.tiers} items={state.items} onDeleteItem={handleDeleteItem} showImageLabel={showImageLabel} onToggleImageLabel={() => setShowImageLabel((v) => !v)} screenshotRef={screenshotRef} />
           <UnrankedList items={state.items} unrankedItemIds={state.unrankedItemIds} onAddItem={handleAddItem} onDeleteItem={handleDeleteItem} showImageLabel={showImageLabel} />
         </div>
@@ -359,7 +361,7 @@ function ListWrapper() {
       <DragOverlay dropAnimation={null} modifiers={[restrictToWrapper]}>
         {activeItem ? (
           <div className="rotate-1 scale-105 cursor-grabbing drop-shadow-xl">
-            <ItemComponent item={activeItem} />
+            <ItemComponent item={activeItem} large={isSplitLayout} />
           </div>
         ) : null}
       </DragOverlay>

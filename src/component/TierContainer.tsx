@@ -30,15 +30,15 @@ function TierRow({ tier, items, onDeleteItem, showImageLabel }: TierRowProps) {
 
   return (
     <div
-      className="flex min-h-20 flex-row border-b-2 border-black @split:min-h-30"
+      className="group flex min-h-20 flex-row @split:min-h-30"
     >
       <div
-        className="flex w-1/5 min-w-18 max-w-28 shrink-0 items-center justify-center border-r-2 border-black px-2 text-center text-lg font-bold @split:max-w-32 @split:text-3xl"
+        className="flex w-1/5 min-w-18 max-w-28 shrink-0 items-center justify-center px-2 text-center text-lg font-bold @split:max-w-32 @split:text-3xl shadow-[inset_0_-1px_0_0_#000,inset_-1px_0_0_0_#000] @split:shadow-[inset_0_-2px_0_0_#000,inset_-2px_0_0_0_#000] group-last:shadow-[inset_-1px_0_0_0_#000] @split:group-last:shadow-[inset_-2px_0_0_0_#000]"
         style={{ backgroundColor: tier.color }}
       >
         {tier.name}
       </div>
-      <div ref={setNodeRef} className="flex min-w-0 flex-1 flex-wrap content-start items-start justify-start bg-[#c5c5c5] gap-1 p-1 @split:p-2">
+      <div ref={setNodeRef} className="flex min-w-0 flex-1 flex-wrap content-start items-start justify-start bg-[#c5c5c5] gap-1 p-1 @split:p-2 shadow-[inset_0_-1px_0_0_#000] @split:shadow-[inset_0_-2px_0_0_#000] group-last:shadow-none">
         <SortableContext items={tier.itemIds} strategy={rectSortingStrategy}>
           {tier.itemIds.map((itemId) => {
             const item = items[itemId];
@@ -74,7 +74,7 @@ function TierContainer({ tiers, items, onDeleteItem, showImageLabel, onToggleIma
     try {
       const dataUrl = await domToPng(screenshotRef.current, {
         scale: 2,
-        backgroundColor: "#c5c5c5",
+        backgroundColor: '#000000',
       });
       const link = document.createElement("a");
       link.download = "tier-list.png";
@@ -97,7 +97,7 @@ function TierContainer({ tiers, items, onDeleteItem, showImageLabel, onToggleIma
           <span className="text-sm font-medium text-white">正在產生圖片…</span>
         </div>
       )}
-      <div className="flex w-full max-w-180 flex-col overflow-hidden rounded-md bg-white/60 p-2 @split:p-3 @split:max-w-210 @split:flex-none xl:w-245">
+      <div className="flex w-full max-w-180 flex-col overflow-hidden rounded-md bg-white/60 p-2 @split:p-4 @split:max-w-210 @split:flex-none xl:w-245">
         <div className="mb-2 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <button
@@ -137,7 +137,7 @@ function TierContainer({ tiers, items, onDeleteItem, showImageLabel, onToggleIma
             </button>
           </div>
         </div>
-        <div ref={screenshotRef}>
+        <div ref={screenshotRef} className="flex flex-col bg-transparent">
           {tiers.map((tier) => (
             <TierRow key={tier.id} tier={tier} items={items} onDeleteItem={onDeleteItem} showImageLabel={showImageLabel} />
           ))}
