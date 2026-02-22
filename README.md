@@ -2,16 +2,16 @@
 
 ## 1. 專案概述
 
-本專案為一個可拖曳排序的 TierList 製作器。  
+一個可拖曳排序的 TierList 製作器，支援純文字與圖片項目，並可匯出為圖片。  
 使用者可：
 
-- 建立項目（Item）
-- 將項目拖曳至不同 Tier
-- 在同一 Tier 內重新排序
+- 建立項目（文字 / 圖片 / 兩者兼具）
+- 將項目拖曳至不同 Tier 或在同一 Tier 內重新排序
 - 刪除項目
 - 管理未排名項目（Unranked List）
-
-本專案目標為完成一個結構清晰、可擴充、可作為作品集展示的 MVP 版本。
+- 切換是否顯示圖片名稱
+- 下載 Tier List 為 PNG 圖片（固定電腦版型，不受裝置影響）
+- 自動儲存至 localStorage，重整頁面不遺失
 
 ---
 
@@ -20,44 +20,34 @@
 | 技術 | 用途 |
 |------|------|
 | TypeScript | 型別安全與資料模型設計 |
-| React | UI 架構 |
-| Tailwind CSS | 版面配置與 RWD |
+| React 19 | UI 架構（含 React Compiler） |
+| Tailwind CSS v4 | 版面配置、RWD、Container Queries |
 | dnd-kit | 拖曳排序功能 |
+| modern-screenshot | DOM 截圖匯出 PNG |
 
 ---
 
 ## 3. 專案結構
-src
-├── component
-│ ├── CreateForm.tsx
-│ ├── ItemComponent.tsx
-│ ├── ListWrapper.tsx
-│ ├── TierContainer.tsx
-│ ├── UnrankedList.tsx
-├── type.ts
 
-
-### 檔案說明
-
-- **ListWrapper.tsx**  
-  存放全域狀態，包裹整個 TierList 功能。
-
-- **TierContainer.tsx**  
-  呈現 Tierlist 區塊。
-
-- **UnrankedList.tsx**  
-  呈現未排名項目區塊。
-
-- **ItemComponent.tsx**  
-  單一 Item 元件。
-
-- **CreateForm.tsx**  
-  建立新 Item 的表單。
+```
+src/
+├── App.css               # Tailwind 入口、@theme container-split 定義
+├── Types.ts              # 共用型別定義
+├── component/
+│   ├── ListWrapper.tsx   # 全域狀態（useReducer）、DnD Context、localStorage
+│   ├── TierContainer.tsx # Tier 列表、截圖下載邏輯
+│   ├── UnrankedList.tsx  # 未排名區塊
+│   ├── SortableItem.tsx  # 可拖曳的 Item 包裝元件
+│   ├── ItemComponent.tsx # Item 視覺呈現（文字卡 / 圖片卡）
+│   └── CreateForm.tsx    # 新增 Item 表單（含圖片上傳與壓縮）
+└── utils/
+    └── dndIds.ts         # Droppable ID 命名與解析工具
+```
 
 ---
 
 ## 4. 資料結構設計
-Type.ts的內文
+
 ```ts
 export type ItemId = string
 export type TierId = string
@@ -65,6 +55,7 @@ export type TierId = string
 export type Item = {
   id: ItemId
   content: string
+  imageUrl?: string       // Base64 JPEG，前端壓縮至 200×200
 }
 
 export type Tier = {
@@ -80,181 +71,140 @@ export type TierListState = {
   unrankedItemIds: ItemId[]
 }
 ```
-設計說明
-採用 normalized state 設計
-items 使用 Record 儲存，提高查找效率
-Tier 僅儲存 itemIds
-UnrankedList 使用 unrankedItemIds 管理
-所有 key 必須使用穩定 id，不可使用 index
 
-## 5. 狀態管理策略
-
-### 5.1 由 useState 改為 useReducer
-
-原先使用 `useState` 管理狀態，  
-但隨著功能包含：
-
-- 新增 Item
-- 刪除 Item
-- 跨 Tier 移動
-- 同 Tier 內排序
-
-屬於多行為型態的狀態操作，因此改用 `useReducer`。
+**設計說明**
+- 採用 normalized state：`items` 使用 `Record` 儲存，提高查找效率
+- Tier 與 UnrankedList 僅儲存 `itemIds`，不嵌套 Item 資料
+- 所有 key 使用 `crypto.randomUUID()` 生成，不使用 index
 
 ---
 
-### 5.2 使用 useReducer 的理由
+## 5. 狀態管理
 
-- 集中管理所有狀態變更邏輯
-- 使用 Action-based 架構讓行為清晰
-- 易於除錯與追蹤
-- 適合 drag-and-drop 複雜操作
-- 未來可擴充 undo / redo
-- 未來接後端時可整合資料同步流程
+### 5.1 useReducer
 
----
-
-### 5.3 Reducer Action 設計
+所有狀態集中於 `ListWrapper`，使用 `useReducer` 管理：
 
 ```ts
 type Action =
-  | { type: "ADD_ITEM"; payload: { content: string } }
-  | { type: "DELETE_ITEM"; payload: { itemId: ItemId } }
-  | { type: "MOVE_ITEM"; payload: { itemId: ItemId; from: string; to: string } }
-  | { type: "REORDER_ITEM"; payload: { itemId: ItemId; overId: ItemId } }
-  | { type: "LOAD_STATE"; payload: TierListState }
+  | { type: "ADD_ITEM";     payload: { content: string; imageUrl?: string } }
+  | { type: "DELETE_ITEM";  payload: { itemId: string } }
+  | { type: "MOVE_ITEM";    payload: { itemId: string; from: string; to: string } }
+  | { type: "REORDER_ITEM"; payload: { itemId: string; overId: string } }
 ```
-### 5.4 ID 生成策略
 
-使用：
-```ts
-crypto.randomUUID()
-```
-原因：
-- React key 需要穩定值
-- 未來會接後端
-- 避免排序錯亂
-- 不需額外套件
-- 確保 Item 在排序與刪除後仍能正確識別
+### 5.2 localStorage 自動儲存
 
-## 6. 功能規格
-### 6.1 CreateForm
+- `useEffect` 監聽 state 變動，自動序列化寫入 `localStorage`
+- 初始化使用 lazy initializer：`loadFromStorage() ?? initialState`
+- 讀取時通過 `isValidState()` 驗證結構，防止損壞資料造成崩潰
+- 寫入失敗（空間不足等）靜默忽略，不中斷操作
 
-功能說明：
-- 左側為文字輸入欄位
-- 右側為新增按鈕
-- 不允許空字串新增
+---
 
-新增成功後：
+## 6. RWD — Container Queries
 
-- 建立新的 Item
-- 將 ItemId 加入 unrankedItemIds
-- 清空輸入欄
+版面使用 Tailwind v4 的 Container Query（而非 Viewport breakpoint），以 `split`（75rem / 1200px）為斷點：
 
-### 6.2 刪除功能
-功能說明：
-- 滑鼠 Hover Item 時顯示右上角刪除按鈕
-- 點擊後立即刪除
-- 不提供 confirm 機制
-- 不提供 undo 功能
-刪除行為需：
-- 從 items 中移除該 Item
-- 同時從所屬 Tier 或 unrankedItemIds 中移除該 id
-
-## 7. Drag & Drop 行為規格
-### 7.1 使用 dnd-kit
-使用技術：
-- DndContext
-- SortableContext
-- DragOverlay
-- collision detection 採用 closestCenter
-
-### 7.2 支援行為
-| 功能          | 是否支援            |
-| ----------- | --------------- |
-| 同 Tier 內排序  | ✅               |
-| 跨 Tier 移動   | ✅               |
-| 放入空 Tier    | ✅               |
-| 放入 Tier 標題區 | ❌               |
-| 限制拖曳範圍      | 限制於 ListWrapper |
-
-### 7.3 拖曳邏輯設計
-- 每個 Tier 右側區域為獨立 Droppable 區域
-- UnrankedList 為一個 Droppable 區域
-- Tier 標題區不可放置 Item
-- 拖曳範圍限制在 ListWrapper 內
-- 使用 DragOverlay 提供拖曳視覺層
-
-拖曳時需要處理兩種情況：
-- 同容器排序（REORDER_ITEM）
-- 跨容器移動（MOVE_ITEM）
-
-## 8. 試作版 MVP 範圍
-試作版完成條件:
-- 新增 Item
-- 刪除 Item
-- 同 Tier 內排序
-- 跨 Tier 移動
-- 可放入空 Tier
-- 使用 DragOverlay
-- 使用 useReducer 管理狀態
-
-## 9.1 圖片功能
-未來 Item 結構預計改為：
-```ts
-type Item = {
-  id: string
-  content?: string
-  imageUrl?: string
+```css
+/* App.css */
+@theme {
+  --container-split: 75rem;
 }
 ```
-功能目標：
-- 支援圖片上傳
-- 自動調整圖片尺寸
-- 使用 object-fit: cover
-- 可切換是否顯示文字
-- 圖片尺寸調整優先於前端處理。
 
-### 9.2 截圖功能
-需求：
-- 輸出固定電腦版尺寸
-- 不受使用者裝置影響
+- 外層包裹 `@container`
+- 子元素使用 `@split:flex-row`、`@split:text-3xl` 等類別
+- **優點**：截圖時強制容器寬度即可觸發桌面版型，不依賴 viewport 大小
 
-技術策略：
-- 建立固定尺寸的 hidden container
-- 使用 html2canvas
-- 強制指定 scale
-- 控制 devicePixelRatio
+---
 
-### 9.3 後端連接
+## 7. 功能規格
 
-未來將：
-- 連接資料庫
-- 支援儲存與讀取模板
-- 支援自訂 Tier 標題與顏色
-- 支援使用者帳號系統
-- 支援分享功能
+### 7.1 CreateForm
 
-## 10. 未來擴充方向
-- Tier 可新增 / 刪除
-- Tier 顏色自訂
-- localStorage 自動儲存
+- 文字輸入與圖片上傳可單獨或同時使用（至少需一項才能新增）
+- 圖片上傳後進行前端 center-crop + 縮放至 200×200 JPEG（品質 85%），減少 localStorage 占用
+- 顯示圖片縮圖預覽，可單獨移除圖片
+- 防止空白項目新增
+
+### 7.2 ItemComponent
+
+提供兩種卡片樣式：
+
+| 類型 | 說明 |
+|------|------|
+| 圖片卡 | 固定正方形尺寸（手機 68px / 桌面 100px），含可切換的文字標籤 |
+| 文字卡 | `inline-flex` 自適應寬度，`whitespace-nowrap` 防截圖時換行 |
+
+### 7.3 刪除功能
+
+- 桌面：Hover Item 顯示右上角 ✕ 按鈕
+- 手機：點擊 Item 切換顯示 ✕ 按鈕（toggle）
+- 拖曳開始時自動關閉 ✕ 按鈕
+- 無 confirm 確認，即時刪除
+
+---
+
+## 8. Drag & Drop 行為規格
+
+### 8.1 技術
+
+- `DndContext` + `SortableContext`（`rectSortingStrategy`）
+- `DragOverlay` 提供拖曳視覺層（拖曳中原位置顯示虛線佔位框）
+- collision detection：優先使用 `pointerWithin`，fallback `closestCenter`，解決空容器左半邊偵測問題
+
+### 8.2 Sensor 設定
+
+| Sensor | 觸發條件 |
+|--------|---------|
+| PointerSensor | 移動距離 ≥ 8px |
+| TouchSensor | 長按 150ms，容許偏移 8px |
+
+### 8.3 支援行為
+
+| 功能 | 狀態 |
+|------|------|
+| 同 Tier 內排序 | ✅ |
+| 跨 Tier 移動 | ✅ |
+| 放入空 Tier | ✅ |
+| 放入 Unranked | ✅ |
+| 拖曳範圍限制於 ListWrapper | ✅ |
+
+### 8.4 拖曳邏輯
+
+- `onDragOver` 即時 dispatch `MOVE_ITEM` / `REORDER_ITEM`
+- `onDragEnd` 只負責清除 `activeId`（狀態已在 over 時即時更新）
+- Drop ID 命名規則由 `utils/dndIds.ts` 統一管理
+
+---
+
+## 9. 截圖功能
+
+### 技術：modern-screenshot（`domToPng`）
+
+**截圖固定電腦版型的策略：**
+
+Container Query 偵測的是容器元素的實際渲染寬度，截圖流程如下：
+
+1. `setIsCapturing(true)` — 顯示全螢幕遮罩（半透明黑底 + backdrop-blur + spinner）
+2. `await 1 frame` — 確保遮罩已渲染至畫面（對使用者隱藏後續切屏操作）
+3. `html.style.minWidth = "2000px"` — 強制 `@container` 父層寬度 ≥ 1200px，觸發 `@split:` 類別
+4. `await 2 frames` — 等待 reflow 完成
+5. `domToPng(screenshotRef.current, { scale: 2 })` — 截取 tier rows 區域（不含工具列）
+6. `finally`：還原 `html.style.minWidth`，移除遮罩
+
+**截圖目標**：`screenshotRef` 掛載於 tier rows 包裝 div，輸出乾淨無 UI 的 PNG（`tier-list.png`）。
+
+---
+
+## 10. 未來擴充方向（Phase 8）
+
+- Supabase 後端整合
+- 登入系統
+- 雲端儲存與讀取 TierList
 - 分享連結功能
-- 圖片壓縮與雲端儲存
+- Tier 可新增 / 刪除 / 自訂顏色
+- 圖片雲端儲存（取代 Base64 localStorage）
+- Undo / Redo（useReducer 架構已預留擴充空間）
 - 多人共用模式（長期目標）
-
-## 11. 非功能性需求
-- 支援手機拖曳
-- 所有 key 必須使用穩定 id
-- 不可使用 index 作為 key
-- Tier 左側名稱區高度需填滿整個 Tier 容器
-- UI 必須保持響應式設計
-- 拖曳動畫需流暢且不卡頓
-
-# 專案目標
-建立一個：
-- 結構清晰
-- 可擴充
-- 易維護
-- 可作為作品集展示
-- 的 TierList 製作工具。
