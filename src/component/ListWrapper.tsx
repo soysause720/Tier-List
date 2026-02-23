@@ -14,6 +14,7 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
+import { useParams } from "react-router-dom";
 import type { TierListState, Item } from "../Types";
 import TierContainer from "./TierContainer";
 import UnrankedList from "./UnrankedList";
@@ -23,8 +24,7 @@ import {
   UNRANKED_CONTAINER_ID,
   UNRANKED_DROP_ID,
 } from "../utils/dndIds";
-import exampleImg from "../assets/tier-list.png";
-import ciallo from "../assets/Ciallo.jpg";
+import { supabase } from "../utils/supabaseClient";
 
 // 優先用 pointerWithin（游標是否在範圍內）偵測放置目標，
 // 解決 closestCenter 在空容器左半邊無法觸發的問題
@@ -61,10 +61,11 @@ function findContainerByDropId(state: TierListState, dropId: string): string | n
 
 // Action 型別
 type Action =
-  | { type: "ADD_ITEM"; payload: { content: string; imageUrl?: string } }
+  | { type: "ADD_ITEM"; payload: { content: string; imageBase64?: string } }
   | { type: "DELETE_ITEM"; payload: { itemId: string } }
   | { type: "MOVE_ITEM"; payload: { itemId: string; from: string; to: string } }
-  | { type: "REORDER_ITEM"; payload: { itemId: string; overId: string } };
+  | { type: "REORDER_ITEM"; payload: { itemId: string; overId: string } }
+  | { type: "LOAD_SHARED_STATE"; payload: TierListState };
 
 const initialState: TierListState = {
   tiers: [
@@ -75,10 +76,10 @@ const initialState: TierListState = {
     { id: "d4e5f6a7-b8c9-0123-defa-234567890123", name: "拉完了", color: "#ffffff", itemIds: ["b8c9d0e1-f2a3-4567-bcde-678901234567"] },
   ],
   items: {
-    "e5f6a7b8-c9d0-1234-efab-345678901234": { id: "e5f6a7b8-c9d0-1234-efab-345678901234", content: "", imageUrl: exampleImg },
+    "e5f6a7b8-c9d0-1234-efab-345678901234": { id: "e5f6a7b8-c9d0-1234-efab-345678901234", content: "" },
     "f6a7b8c9-d0e1-2345-fabc-456789012345": { id: "f6a7b8c9-d0e1-2345-fabc-456789012345", content: "點擊右上角的X即可刪除" },
-    "a7b8c9d0-e1f2-3456-abcd-567890123456": { id: "a7b8c9d0-e1f2-3456-abcd-567890123456", content: "Ciallo~", imageUrl: ciallo },
-    "b8c9d0e1-f2a3-4567-bcde-678901234567": { id: "b8c9d0e1-f2a3-4567-bcde-678901234567", content: "分享功能目前還未完成" },
+    "a7b8c9d0-e1f2-3456-abcd-567890123456": { id: "a7b8c9d0-e1f2-3456-abcd-567890123456", content: " (∠·ω )⌒★" },
+    "b8c9d0e1-f2a3-4567-bcde-678901234567": { id: "b8c9d0e1-f2a3-4567-bcde-678901234567", content: "分享功能已完成" },
   },
   unrankedItemIds: [
     "a7b8c9d0-e1f2-3456-abcd-567890123456",
@@ -90,10 +91,10 @@ function reducer(state: TierListState, action: Action): TierListState {
     case "ADD_ITEM": {
       // 內容與圖片至少需要其一（UI 層已擋，reducer 層作為最後防線）
       const content = action.payload.content.trim();
-      const imageUrl = action.payload.imageUrl;
-      if (!content && !imageUrl) return state;
+      const imageBase64 = action.payload.imageBase64;
+      if (!content && !imageBase64) return state;
       const id = crypto.randomUUID();
-      const newItem: Item = { id, content, ...(imageUrl ? { imageUrl } : {}) };
+      const newItem: Item = { id, content, ...(imageBase64 ? { imageBase64 } : {}) };
       return {
         ...state,
         items: { ...state.items, [id]: newItem },
@@ -201,6 +202,9 @@ function reducer(state: TierListState, action: Action): TierListState {
         tiers,
       };
     }
+    case "LOAD_SHARED_STATE": {
+      return action.payload;
+    }
     default:
       return state;
   }
@@ -232,14 +236,50 @@ function loadFromStorage(): TierListState | null {
 }
 
 function ListWrapper() {
+  const { id: shareId } = useParams<{ id: string }>();
+  
   // lazy initializer: 先讀 localStorage，讀不到再用 initialState
   const [state, dispatch] = useReducer(reducer, undefined, () => loadFromStorage() ?? initialState);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [showImageLabel, setShowImageLabel] = useState(true);
   const [isSplitLayout, setIsSplitLayout] = useState(false);
+  const [isSharedMode, setIsSharedMode] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
   // 截圖目標：TierContainer 的 tier rows 區域
   const screenshotRef = useRef<HTMLDivElement>(null);
+
+  // 如果是分享連結，從資料庫拉資料
+  useEffect(() => {
+    if (!shareId) {
+      setIsSharedMode(false);
+      return;
+    }
+
+    setIsSharedMode(true);
+
+    const fetchSharedData = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("tier-lists")
+          .select("data")
+          .eq("id", shareId)
+          .single();
+
+        if (error) throw error;
+        if (data) {
+          // 用分享的 State 覆蓋 initialState 的邏輯
+          // 直接 dispatch 一個特殊的 action 來設置初始 state
+          const sharedState = data.data as TierListState;
+          // 重置 state：將分享數據作為新的初始狀態
+          dispatch({ type: "LOAD_SHARED_STATE", payload: sharedState } as any);
+        }
+      } catch (error) {
+        console.error("載入分享失敗:", error);
+      }
+    };
+
+    fetchSharedData();
+  }, [shareId]);
 
   // 追蹤是否處於 split 布局（寬度 >= 75rem），供 DragOverlay 判斷圖片尺寸
   useEffect(() => {
@@ -285,8 +325,8 @@ function ListWrapper() {
     }),
   );
 
-  const handleAddItem = (content: string, imageUrl?: string) => {
-    dispatch({ type: "ADD_ITEM", payload: { content, imageUrl } });
+  const handleAddItem = (content: string, imageBase64?: string) => {
+    dispatch({ type: "ADD_ITEM", payload: { content, imageBase64 } });
   };
 
   const handleDeleteItem = (itemId: string) => {
@@ -354,7 +394,7 @@ function ListWrapper() {
     >
       <div className="@container w-full">
         <div ref={wrapperRef} className="mx-auto flex justify-center w-full min-w-0 max-w-400 flex-col items-center gap-0 @split:gap-5 p-2 @split:flex-row @split:items-start">
-          <TierContainer tiers={state.tiers} items={state.items} onDeleteItem={handleDeleteItem} showImageLabel={showImageLabel} onToggleImageLabel={() => setShowImageLabel((v) => !v)} screenshotRef={screenshotRef} />
+          <TierContainer state={state} tiers={state.tiers} items={state.items} onDeleteItem={handleDeleteItem} showImageLabel={showImageLabel} onToggleImageLabel={() => setShowImageLabel((v) => !v)} screenshotRef={screenshotRef} isSharedMode={isSharedMode} />
           <UnrankedList items={state.items} unrankedItemIds={state.unrankedItemIds} onAddItem={handleAddItem} onDeleteItem={handleDeleteItem} showImageLabel={showImageLabel} />
         </div>
       </div>

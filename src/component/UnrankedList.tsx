@@ -8,7 +8,7 @@ import { UNRANKED_DROP_ID } from "../utils/dndIds";
 type UnrankedListProps = {
   items: Record<string, Item>;
   unrankedItemIds: string[];
-  onAddItem: (content: string, imageUrl?: string) => void;
+  onAddItem: (content: string, imageBase64?: string) => void;
   onDeleteItem: (itemId: string) => void;
   showImageLabel: boolean;
 };

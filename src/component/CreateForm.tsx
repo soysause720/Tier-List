@@ -2,52 +2,102 @@ import { useRef, useState } from "react";
 import { AiOutlineUpload, AiOutlineCheck, AiOutlineClose } from "react-icons/ai";
 
 type CreateFormProps = {
-  onAddItem: (content: string, imageUrl?: string) => void;
+  onAddItem: (content: string, imageBase64?: string) => void;
 };
 
 function CreateForm({ onAddItem }: CreateFormProps) {
   const [input, setInput] = useState("");
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [imageBlob, setImageBlob] = useState<Blob | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const canSubmit = input.trim() !== "" || imageUrl !== null;
+  const canSubmit = input.trim() !== "" || imageBlob !== null;
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  /**
+   * 將 Blob 轉換成 Base64 字串
+   */
+  const blobToBase64 = (blob: Blob): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  };
+
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+
     img.onload = () => {
-      // Center-crop 正方形再縮放到 200×200，減少 localStorage 占用
       const SIZE = 200;
       const canvas = document.createElement("canvas");
       canvas.width = SIZE;
       canvas.height = SIZE;
       const ctx = canvas.getContext("2d")!;
 
+      // Center-crop 邏輯
       const srcSize = Math.min(img.width, img.height);
       const srcX = (img.width - srcSize) / 2;
       const srcY = (img.height - srcSize) / 2;
 
       ctx.drawImage(img, srcX, srcY, srcSize, srcSize, 0, 0, SIZE, SIZE);
-      const compressed = canvas.toDataURL("image/jpeg", 0.85);
-      setImageUrl(compressed);
-      URL.revokeObjectURL(img.src);
+
+      // 改用 toBlob 產生 WebP 格式
+      canvas.toBlob((blob) => {
+        if (!blob) return;
+
+        // ✅ 步驟 1：暫存 Blob 本地（未提交時可直接 GC）
+        setImageBlob(blob);
+
+        // ✅ 步驟 2：產生預覽用的 ObjectURL
+        const objectUrlForPreview = URL.createObjectURL(blob);
+        setPreviewUrl(objectUrlForPreview);
+      }, "image/webp", 0.8);
+
+      URL.revokeObjectURL(objectUrl);
     };
-    img.src = URL.createObjectURL(file);
+    img.src = objectUrl;
   };
 
   const handleRemoveImage = () => {
-    setImageUrl(null);
+    // ✅ 釋放 ObjectURL 記憶體
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
+    // ✅ 釋放 Blob 記憶體
+    setImageBlob(null);
+    setPreviewUrl(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!canSubmit) return;
-    onAddItem(input.trim(), imageUrl ?? undefined);
+
+    if (imageBlob) {
+      // ✅ Blob 轉 Base64，只有提交時才轉換
+      try {
+        const base64 = await blobToBase64(imageBlob);
+        onAddItem(input.trim(), base64);
+      } catch (error) {
+        console.error("圖片轉換失敗:", error);
+        return;
+      }
+    } else {
+      onAddItem(input.trim());
+    }
+
+    // ✅ 重置表單並釋放記憶體
     setInput("");
-    setImageUrl(null);
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
+    setImageBlob(null);
+    setPreviewUrl(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
@@ -70,10 +120,10 @@ function CreateForm({ onAddItem }: CreateFormProps) {
           onChange={handleImageChange}
         />
         {/* 圖片預覽（顯示在上傳按鈕左邊） */}
-        {imageUrl && (
+        {previewUrl && (
           <div className="relative shrink-0">
             <img
-              src={imageUrl}
+              src={previewUrl}
               alt="預覽"
               className="h-10 w-10 rounded border border-zinc-300 object-cover"
             />
@@ -91,9 +141,9 @@ function CreateForm({ onAddItem }: CreateFormProps) {
           type="button"
           onClick={() => fileInputRef.current?.click()}
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded border border-zinc-400 bg-white text-lg text-zinc-700 transition hover:bg-zinc-100 active:scale-[0.98]"
-          title={imageUrl ? "已上傳圖片" : "上傳圖片"}
+          title={previewUrl ? "已上傳圖片" : "上傳圖片"}
         >
-          {imageUrl ? <AiOutlineCheck className="text-green-600" /> : <AiOutlineUpload />}
+          {previewUrl ? <AiOutlineCheck className="text-green-600" /> : <AiOutlineUpload />}
         </button>
         <button
           className="h-10 shrink-0 rounded bg-blue-600 px-4 text-sm font-medium text-white transition hover:bg-blue-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 md:text-base"

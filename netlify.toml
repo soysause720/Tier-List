@@ -1,0 +1,15 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+# SPA 路由重定向：所有未找到的檔案都導向 index.html
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# 環境變數提示
+[context.production.environment]
+  # 需要在 Netlify 儀表板中手動設置這些環境變數：
+  # VITE_SUPABASE_URL=你的_Supabase_URL
+  # VITE_SUPABASE_ANON_KEY=你的_Supabase_Anon_Key

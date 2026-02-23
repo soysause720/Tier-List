@@ -198,13 +198,43 @@ Container Query 偵測的是容器元素的實際渲染寬度，截圖流程如�
 
 ---
 
-## 10. 未來擴充方向（Phase 8）
+## 10. 實作分享連結功能
 
-- Supabase 後端整合
+### 9.1 前端優化（準備資料）(已完成)
+- 轉換格式：將圖片處理邏輯從 toDataURL 改為 toBlob，並儲存這個 Blob 物件。
+- 本地預覽：使用 URL.createObjectURL(blob) 來顯示圖片，取代肥大的 Base64 字串。
+- 整理 State：確保你的 TierListState 結構清晰（例如：包含每一行的 ID、名稱，以及 Items 的圖片 URL）。
+
+### 9.2 Supabase 環境設定 (已完成)
+- 建立 Storage Bucket：開一個名為 tier-images 的 Bucket，並設為 Public（讓所有人都能看圖）。
+- 建立 Database Table：開一個 tier_lists 資料表。
+- 欄位：id (uuid), created_at, data (jsonb)。
+- 設定 RLS 權限：
+Storage：允許匿名使用者 INSERT 與 SELECT。
+Table：允許匿名使用者 INSERT 與 SELECT（但不允許 UPDATE 或 DELETE）。
+
+### 9.3 實作「按下分享」的邏輯
+- 上傳圖片：遍歷所有本地圖片 Blob，上傳至 Supabase Storage，換取一組 Public URLs。
+- 組裝 JSON：將原有的 State 內容更新，把本地網址替換成剛剛拿到的 Public URLs。
+- 寫入資料庫：將更新後的 JSON 存入 tier_lists 表。
+- 產生連結：取得回傳的 id (UUID)，並組成分享網址（例如 https://.../share/UUID）。
+
+### 9.4 實作「讀取分享」的頁面
+- 動態路由：在 React/Next.js 中建立 /share/:id 路由。
+- 撈取資料：頁面載入時，根據 id 向 Supabase 請求 data。
+- 還原畫面：將拿到的 JSON 餵給你的渲染組件（設為 Read-only 模式，關閉拖放功能）。
+
+### 9.5 專案收尾（加分項）
+- Loading 狀態：上傳圖片與寫入資料庫時，顯示一個可愛的讀取動畫。
+- 複製網址：實作一個「一鍵複製連結」的按鈕。
+- 清理快取：分享成功後，呼叫 URL.revokeObjectURL() 釋放瀏覽器記憶體。
+
+---
+
+## 11. 未來擴充方向
+
 - 登入系統
+- 建立子網頁展示其他人製作的Tier-List
 - 雲端儲存與讀取 TierList
-- 分享連結功能
 - Tier 可新增 / 刪除 / 自訂顏色
-- 圖片雲端儲存（取代 Base64 localStorage）
-- Undo / Redo（useReducer 架構已預留擴充空間）
 - 多人共用模式（長期目標）

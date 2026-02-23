@@ -4,17 +4,21 @@ import { AiOutlineDownload, AiOutlineShareAlt } from "react-icons/ai";
 import type { RefObject } from "react";
 import { useState } from "react";
 import { domToPng } from "modern-screenshot";
-import type { Tier, Item } from "../Types";
+import type { Tier, Item, TierListState } from "../Types";
 import SortableItem from "./SortableItem";
 import { makeTierDropId } from "../utils/dndIds";
+import { shareToSupabase } from "../utils/shareUtils";
+import Toast from "./Toast";
 
 type TierContainerProps = {
+  state: TierListState;
   tiers: Tier[];
   items: Record<string, Item>;
   onDeleteItem: (itemId: string) => void;
   showImageLabel: boolean;
   onToggleImageLabel: () => void;
   screenshotRef?: RefObject<HTMLDivElement | null>;
+  isSharedMode?: boolean;
 };
 
 type TierRowProps = {
@@ -50,8 +54,10 @@ function TierRow({ tier, items, onDeleteItem, showImageLabel }: TierRowProps) {
   );
 }
 
-function TierContainer({ tiers, items, onDeleteItem, showImageLabel, onToggleImageLabel, screenshotRef }: TierContainerProps) {
+function TierContainer({ state, tiers, items, onDeleteItem, showImageLabel, onToggleImageLabel, screenshotRef, isSharedMode = false }: TierContainerProps) {
   const [isCapturing, setIsCapturing] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
   const handleDownload = async () => {
     if (!screenshotRef?.current || isCapturing) return;
@@ -89,6 +95,41 @@ function TierContainer({ tiers, items, onDeleteItem, showImageLabel, onToggleIma
     }
   };
 
+  const handleShare = async () => {
+    if (isSharing) return;
+
+    setIsSharing(true);
+    try {
+      // 檢查是否已有既存的分享 ID（只在「本地創作模式」下使用）
+      let existingShareId: string | undefined;
+      if (!isSharedMode) {
+        existingShareId = localStorage.getItem("tier-list-share-id") || undefined;
+      }
+
+      // 呼叫分享邏輯
+      const shareUrl = await shareToSupabase(state, existingShareId);
+
+      // 只在「本地創作模式」下保存 shareId（防止覆蓋原始分享）
+      if (!isSharedMode) {
+        const shareId = shareUrl.split("/share/")[1];
+        if (shareId) {
+          localStorage.setItem("tier-list-share-id", shareId);
+        }
+      }
+
+      // 複製到剪貼板
+      await navigator.clipboard.writeText(shareUrl);
+
+      // 顯示成功 Toast
+      setToast({ message: "連結已複製！", type: "success" });
+    } catch (error) {
+      console.error("分享失敗:", error);
+      setToast({ message: "分享失敗，請重試", type: "error" });
+    } finally {
+      setIsSharing(false);
+    }
+  };
+
   return (  
     <>
       {isCapturing && (
@@ -96,6 +137,13 @@ function TierContainer({ tiers, items, onDeleteItem, showImageLabel, onToggleIma
           <div className="h-10 w-10 animate-spin rounded-full border-4 border-white/30 border-t-white" />
           <span className="text-sm font-medium text-white">正在產生圖片…</span>
         </div>
+      )}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
       )}
       <div className="flex w-full max-w-180 flex-col overflow-hidden rounded-md bg-white/60 p-2 @split:p-4 @split:max-w-210 @split:flex-none xl:w-245">
         <div className="mb-2 flex items-center justify-between">
@@ -113,10 +161,12 @@ function TierContainer({ tiers, items, onDeleteItem, showImageLabel, onToggleIma
             <button
               type="button"
               title="分享"
-              className="flex h-10 items-center gap-1 rounded border border-zinc-400 bg-white px-2.5 text-sm text-zinc-700 transition hover:bg-zinc-100 active:scale-[0.98]"
+              onClick={handleShare}
+              disabled={isSharing}
+              className="flex h-10 items-center gap-1 rounded border border-zinc-400 bg-white px-2.5 text-sm text-zinc-700 transition hover:bg-zinc-100 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
             >
               <AiOutlineShareAlt className="text-base" />
-              <span>分享</span>
+              <span>{isSharing ? "分享中…" : "分享"}</span>
             </button>
           </div>
           <div className="flex items-center gap-1.5">
