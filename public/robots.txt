@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://tier-list-maker168.netlify.app/sitemap.xml
