@@ -18,7 +18,6 @@ type TierContainerProps = {
   showImageLabel: boolean;
   onToggleImageLabel: () => void;
   screenshotRef?: RefObject<HTMLDivElement | null>;
-  isSharedMode?: boolean;
 };
 
 type TierRowProps = {
@@ -26,23 +25,24 @@ type TierRowProps = {
   items: Record<string, Item>;
   onDeleteItem: (itemId: string) => void;
   showImageLabel: boolean;
+  isLast?: boolean;
 };
 
-function TierRow({ tier, items, onDeleteItem, showImageLabel }: TierRowProps) {
+function TierRow({ tier, items, onDeleteItem, showImageLabel, isLast = false }: TierRowProps) {
   const dropId = makeTierDropId(tier.id);
   const { setNodeRef } = useDroppable({ id: dropId });
 
   return (
     <div
-      className="group flex min-h-20 flex-row @split:min-h-30"
+      className="flex min-h-20 flex-row @split:min-h-30 last:[&>div:nth-child(2)]:shadow-none"
     >
       <div
-        className="flex w-1/5 min-w-18 max-w-28 shrink-0 items-center justify-center px-2 text-center text-lg font-bold @split:max-w-32 @split:text-3xl shadow-[inset_0_-1px_0_0_#000,inset_-1px_0_0_0_#000] @split:shadow-[inset_0_-2px_0_0_#000,inset_-2px_0_0_0_#000] group-last:shadow-[inset_-1px_0_0_0_#000] @split:group-last:shadow-[inset_-2px_0_0_0_#000]"
+        className={`flex w-1/5 min-w-18 max-w-28 shrink-0 items-center justify-center px-2 text-center text-lg font-bold @split:max-w-32 @split:text-3xl shadow-[inset_0_-1px_0_0_#000,inset_-1px_0_0_0_#000] @split:shadow-[inset_0_-2px_0_0_#000,inset_-2px_0_0_0_#000] ${isLast ? "shadow-[inset_-1px_0_0_0_#000] @split:shadow-[inset_-2px_0_0_0_#000]" : ""}`}
         style={{ backgroundColor: tier.color }}
       >
         {tier.name}
       </div>
-      <div ref={setNodeRef} className="flex min-w-0 flex-1 flex-wrap content-start items-start justify-start bg-[#c5c5c5] gap-1 p-1 @split:p-2 shadow-[inset_0_-1px_0_0_#000] @split:shadow-[inset_0_-2px_0_0_#000] group-last:shadow-none">
+      <div ref={setNodeRef} className={`flex min-w-0 flex-1 flex-wrap content-start items-start justify-start bg-[#c5c5c5] gap-1 p-1 @split:p-2 shadow-[inset_0_-1px_0_0_#000] @split:shadow-[inset_0_-2px_0_0_#000] ${isLast ? "shadow-none" : ""}`}>
         <SortableContext items={tier.itemIds} strategy={rectSortingStrategy}>
           {tier.itemIds.map((itemId) => {
             const item = items[itemId];
@@ -54,7 +54,7 @@ function TierRow({ tier, items, onDeleteItem, showImageLabel }: TierRowProps) {
   );
 }
 
-function TierContainer({ state, tiers, items, onDeleteItem, showImageLabel, onToggleImageLabel, screenshotRef, isSharedMode = false }: TierContainerProps) {
+function TierContainer({ state, tiers, items, onDeleteItem, showImageLabel, onToggleImageLabel, screenshotRef }: TierContainerProps) {
   const [isCapturing, setIsCapturing] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
@@ -100,22 +100,8 @@ function TierContainer({ state, tiers, items, onDeleteItem, showImageLabel, onTo
 
     setIsSharing(true);
     try {
-      // 檢查是否已有既存的分享 ID（只在「本地創作模式」下使用）
-      let existingShareId: string | undefined;
-      if (!isSharedMode) {
-        existingShareId = localStorage.getItem("tier-list-share-id") || undefined;
-      }
-
-      // 呼叫分享邏輯
-      const shareUrl = await shareToSupabase(state, existingShareId);
-
-      // 只在「本地創作模式」下保存 shareId（防止覆蓋原始分享）
-      if (!isSharedMode) {
-        const shareId = shareUrl.split("/share/")[1];
-        if (shareId) {
-          localStorage.setItem("tier-list-share-id", shareId);
-        }
-      }
+      // 呼叫分享邏輯，每次都建立新記錄
+      const shareUrl = await shareToSupabase(state);
 
       // 複製到剪貼板
       await navigator.clipboard.writeText(shareUrl);
@@ -188,8 +174,8 @@ function TierContainer({ state, tiers, items, onDeleteItem, showImageLabel, onTo
           </div>
         </div>
         <div ref={screenshotRef} className="flex flex-col bg-transparent">
-          {tiers.map((tier) => (
-            <TierRow key={tier.id} tier={tier} items={items} onDeleteItem={onDeleteItem} showImageLabel={showImageLabel} />
+          {tiers.map((tier, index) => (
+            <TierRow key={tier.id} tier={tier} items={items} onDeleteItem={onDeleteItem} showImageLabel={showImageLabel} isLast={index === tiers.length - 1} />
           ))}
         </div>
       </div>

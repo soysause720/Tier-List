@@ -239,12 +239,20 @@ function loadFromStorage(): TierListState | null {
 function ListWrapper() {
   const { id: shareId } = useParams<{ id: string }>();
   
-  // lazy initializer: 先讀 localStorage，讀不到再用 initialState
-  const [state, dispatch] = useReducer(reducer, undefined, () => loadFromStorage() ?? initialState);
+  // lazy initializer: 分享模式用 initialState，本地模式讀 localStorage
+  const [state, dispatch] = useReducer(reducer, undefined, () => {
+    // 如果是分享連結模式，直接用初始狀態，不讀 localStorage
+    if (shareId) {
+      return initialState;
+    }
+    // 本地編輯模式，讀 localStorage
+    return loadFromStorage() ?? initialState;
+  });
   const [activeId, setActiveId] = useState<string | null>(null);
   const [showImageLabel, setShowImageLabel] = useState(true);
   const [isSplitLayout, setIsSplitLayout] = useState(false);
-  const [isSharedMode, setIsSharedMode] = useState(false);
+  const [isViewingSharedList, setIsViewingSharedList] = useState(false);
+  const [isLoadingSharedData, setIsLoadingSharedData] = useState(!!shareId);
   const wrapperRef = useRef<HTMLDivElement>(null);
   // 截圖目標：TierContainer 的 tier rows 區域
   const screenshotRef = useRef<HTMLDivElement>(null);
@@ -252,11 +260,13 @@ function ListWrapper() {
   // 如果是分享連結，從資料庫拉資料
   useEffect(() => {
     if (!shareId) {
-      setIsSharedMode(false);
+      setIsViewingSharedList(false);
+      setIsLoadingSharedData(false);
       return;
     }
 
-    setIsSharedMode(true);
+    setIsViewingSharedList(true);
+    setIsLoadingSharedData(true);
 
     const fetchSharedData = async () => {
       try {
@@ -268,14 +278,13 @@ function ListWrapper() {
 
         if (error) throw error;
         if (data) {
-          // 用分享的 State 覆蓋 initialState 的邏輯
-          // 直接 dispatch 一個特殊的 action 來設置初始 state
           const sharedState = data.data as TierListState;
-          // 重置 state：將分享數據作為新的初始狀態
           dispatch({ type: "LOAD_SHARED_STATE", payload: sharedState } as any);
         }
       } catch (error) {
         console.error("載入分享失敗:", error);
+      } finally {
+        setIsLoadingSharedData(false);
       }
     };
 
@@ -295,14 +304,16 @@ function ListWrapper() {
     return () => observer.disconnect();
   }, []);
 
-  // state 變動時自動儲存到 localStorage
+  // state 變動時自動儲存到 localStorage（只在本地編輯模式，分享模式不存）
   useEffect(() => {
+    if (isViewingSharedList) return;
+
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     } catch {
       // 空間不足時靜默失敗，不影響操作
     }
-  }, [state]);
+  }, [state, isViewingSharedList]);
 
   // 限制 DragOverlay 的視覺移動範圍在 ListWrapper 內
   const restrictToWrapper = useCallback<Modifier>(({ draggingNodeRect, transform }) => {
@@ -394,10 +405,21 @@ function ListWrapper() {
       onDragCancel={handleDragCancel}
     >
       <div className="@container w-full">
-        <div ref={wrapperRef} className="mx-auto flex justify-center w-full min-w-0 max-w-400 flex-col items-center gap-0 @split:gap-5 p-2 @split:flex-row @split:items-start">
-          <TierContainer state={state} tiers={state.tiers} items={state.items} onDeleteItem={handleDeleteItem} showImageLabel={showImageLabel} onToggleImageLabel={() => setShowImageLabel((v) => !v)} screenshotRef={screenshotRef} isSharedMode={isSharedMode} />
-          <UnrankedList items={state.items} unrankedItemIds={state.unrankedItemIds} onAddItem={handleAddItem} onDeleteItem={handleDeleteItem} showImageLabel={showImageLabel} />
-        </div>
+        {isLoadingSharedData ? (
+          // 分享數據加載中：顯示 spinner
+          <div className="flex h-screen items-center justify-center">
+            <div className="flex flex-col items-center gap-3">
+              <div className="h-12 w-12 animate-spin rounded-full border-4 border-blue-200 border-t-blue-600" />
+              <span className="text-sm text-gray-600">載入分享內容中...</span>
+            </div>
+          </div>
+        ) : (
+          // 內容已加載：顯示 TierList
+          <div ref={wrapperRef} className="mx-auto flex justify-center w-full min-w-0 max-w-400 flex-col items-center gap-0 @split:gap-5 p-2 @split:flex-row @split:items-start">
+            <TierContainer state={state} tiers={state.tiers} items={state.items} onDeleteItem={handleDeleteItem} showImageLabel={showImageLabel} onToggleImageLabel={() => setShowImageLabel((v) => !v)} screenshotRef={screenshotRef} />
+            <UnrankedList items={state.items} unrankedItemIds={state.unrankedItemIds} onAddItem={handleAddItem} onDeleteItem={handleDeleteItem} showImageLabel={showImageLabel} />
+          </div>
+        )}
       </div>
       <DragOverlay dropAnimation={null} modifiers={[restrictToWrapper]}>
         {activeItem ? (

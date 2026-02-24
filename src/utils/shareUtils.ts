@@ -60,16 +60,14 @@ async function uploadImages(
 }
 
 /**
- * 建立或更新分享記錄
+ * 建立分享記錄
  * @param state - 原始的 TierListState
  * @param imageUrls - { itemId: publicUrl } 的 Map
- * @param existingShareId - 存在的分享 ID (若要更新)
  * @returns 記錄 ID (UUID)
  */
-async function createOrUpdateShareRecord(
+async function createShareRecord(
   state: TierListState,
-  imageUrls: Record<string, string>,
-  existingShareId?: string
+  imageUrls: Record<string, string>
 ): Promise<string> {
   // 建立新的 State，用 Public URLs 替換 imageBase64
   const newState: TierListState = {
@@ -80,32 +78,14 @@ async function createOrUpdateShareRecord(
         if (imageUrls[itemId]) {
           // 用公開 URL 替換 Base64
           delete newItem.imageBase64;
-          (newItem as any).imageUrl = imageUrls[itemId];
+          newItem.imageUrl = imageUrls[itemId];
         }
         return [itemId, newItem];
       })
     ),
   };
 
-  // 如果有既存的 shareId，更新該筆記錄
-  if (existingShareId) {
-    const { error } = await supabase
-      .from("tier-lists")
-      .update({
-        data: newState,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", existingShareId);
-
-    if (error) {
-      console.error("更新分享記錄失敗:", error);
-      throw error;
-    }
-
-    return existingShareId;
-  }
-
-  // 否則建立新記錄
+  // 建立新記錄
   const { data, error } = await supabase
     .from("tier-lists")
     .insert([
@@ -131,19 +111,18 @@ async function createOrUpdateShareRecord(
 /**
  * 完整的分享流程
  * @param state - 完整的 TierListState
- * @param existingShareId - 如果已有分享ID，將更新該筆記錄而非建立新的
  * @returns 分享連結
  */
-export async function shareToSupabase(state: TierListState, existingShareId?: string): Promise<string> {
+export async function shareToSupabase(state: TierListState): Promise<string> {
   try {
-    // 生成臨時 UUID 用於存儲資料夾（若未提供既存ID）
-    const tierListId = existingShareId || crypto.randomUUID();
+    // 生成 UUID 用於存儲資料夾
+    const tierListId = crypto.randomUUID();
 
     // 1. 上傳所有圖片
     const imageUrls = await uploadImages(tierListId, state.items);
 
-    // 2. 建立或更新分享記錄
-    const shareId = await createOrUpdateShareRecord(state, imageUrls, existingShareId);
+    // 2. 建立分享記錄
+    const shareId = await createShareRecord(state, imageUrls);
 
     // 3. 返回分享連結
     const shareUrl = `${window.location.origin}/share/${shareId}`;

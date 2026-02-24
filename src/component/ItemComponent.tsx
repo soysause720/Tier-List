@@ -10,6 +10,10 @@ type ItemComponentProps = {
   large?: boolean;
 };
 
+// pointer: coarse = 手機/平板等觸控裝置
+const isTouchDevice =
+  typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
+
 function ItemComponent({ item, onDelete, isActive = false, showImageLabel = true, large = false }: ItemComponentProps) {
   const deleteButton = onDelete && (
     <button
@@ -19,7 +23,9 @@ function ItemComponent({ item, onDelete, isActive = false, showImageLabel = true
         onDelete(item.id);
       }}
       className={`absolute -right-2 -top-2 h-5 w-5 z-10 items-center justify-center rounded-full border border-zinc-300 bg-white text-xs leading-none text-zinc-700 shadow-sm transition hover:bg-red-500 hover:text-white ${
-        isActive ? "flex" : "hidden group-hover:flex"
+        isTouchDevice
+          ? (isActive ? "flex" : "hidden")
+          : (isActive ? "flex" : "hidden group-hover:flex")
       }`}
       aria-label={`刪除 ${item.content}`}
     >
@@ -28,7 +34,7 @@ function ItemComponent({ item, onDelete, isActive = false, showImageLabel = true
   );
 
   // 圖片卡片樣式（支援 imageBase64 和 imageUrl）
-  const imageUrl = (item as any).imageUrl || item.imageBase64;
+  const imageUrl = item.imageUrl || item.imageBase64;
   if (imageUrl) {
     return (
       <div className="group relative flex flex-col items-center w-fit rounded border border-zinc-300 bg-white shadow-sm">

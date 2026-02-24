@@ -5,6 +5,7 @@ export type Item = {
   id: ItemId
   content: string
   imageBase64?: string
+  imageUrl?: string
 }
 
 export type Tier = {

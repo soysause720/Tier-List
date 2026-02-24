@@ -55,7 +55,8 @@ export type TierId = string
 export type Item = {
   id: ItemId
   content: string
-  imageUrl?: string       // Base64 JPEG，前端壓縮至 200×200
+  imageBase64?: string    // 本地編輯時：前端壓縮至 200×200 WebP
+  imageUrl?: string       // 分享時：Supabase Public URL
 }
 
 export type Tier = {
@@ -87,29 +88,32 @@ export type TierListState = {
 
 ```ts
 type Action =
-  | { type: "ADD_ITEM";     payload: { content: string; imageUrl?: string } }
-  | { type: "DELETE_ITEM";  payload: { itemId: string } }
-  | { type: "MOVE_ITEM";    payload: { itemId: string; from: string; to: string } }
-  | { type: "REORDER_ITEM"; payload: { itemId: string; overId: string } }
+  | { type: "ADD_ITEM";           payload: { content: string; imageBase64?: string } }
+  | { type: "DELETE_ITEM";        payload: { itemId: string } }
+  | { type: "MOVE_ITEM";          payload: { itemId: string; from: string; to: string } }
+  | { type: "REORDER_ITEM";       payload: { itemId: string; overId: string } }
+  | { type: "LOAD_SHARED_STATE"; payload: TierListState }
 ```
 
 ### 5.2 localStorage 自動儲存
 
 - `useEffect` 監聽 state 變動，自動序列化寫入 `localStorage`
+- **分享模式隔離**：當 `isViewingSharedList` 為 true（URL 包含 `/share/:id`）時，跳過 localStorage 寫入
 - 初始化使用 lazy initializer：`loadFromStorage() ?? initialState`
 - 讀取時通過 `isValidState()` 驗證結構，防止損壞資料造成崩潰
 - 寫入失敗（空間不足等）靜默忽略，不中斷操作
+- 防止多視窗間的分享連結污染本地編輯版本
 
 ---
 
 ## 6. RWD — Container Queries
 
-版面使用 Tailwind v4 的 Container Query（而非 Viewport breakpoint），以 `split`（75rem / 1200px）為斷點：
+版面使用 Tailwind v4 的 Container Query（而非 Viewport breakpoint），以 `split`（70rem / 1120px）為斷點：
 
 ```css
 /* App.css */
 @theme {
-  --container-split: 75rem;
+  --container-split: 70rem;
 }
 ```
 
@@ -124,7 +128,7 @@ type Action =
 ### 7.1 CreateForm
 
 - 文字輸入與圖片上傳可單獨或同時使用（至少需一項才能新增）
-- 圖片上傳後進行前端 center-crop + 縮放至 200×200 JPEG（品質 85%），減少 localStorage 占用
+- 圖片上傳後進行前端 center-crop + 縮放至 200×200 WebP（品質 80%），減少 localStorage 占用
 - 顯示圖片縮圖預覽，可單獨移除圖片
 - 防止空白項目新增
 
@@ -202,46 +206,137 @@ Container Query 偵測的是容器元素的實際渲染寬度，截圖流程如�
 
 ### 10.1 技術流程
 
-- **本地編輯**：圖片存為 Base64（saveState localStorage）
-- **按分享**：Base64 → File 上傳至 Supabase Storage → 取得 Public URL → 寫入資料庫
-- **打開分享**：`/share/:id` 從資料庫拉資料 → 用同一個 UI 顯示
+分享流程採用「一次分享建立一份記錄」的設計，支援使用者製作多份表單各自分享：
 
-### 10.2 實現要點
+1. **本地編輯模式**
+   - 圖片以 Base64 編碼儲存至 `Item.imageBase64`
+   - 自動同步到 localStorage（`tier-list-state` key）
+
+2. **按下分享按鈕**
+   - 上傳所有 Base64 圖片至 Supabase Storage → 取得 Public URL
+   - 檢查 Item 資料：將 `imageBase64` 刪除，以 `imageUrl` 替換
+   - **每次都建立新的資料庫記錄**（不覆蓋舊分享）
+   - 返回唯一的分享連結並自動複製到剪貼板
+
+3. **打開分享連結 `/share/:id`**
+   - 從資料庫查詢記錄，拉取完整的 TierListState
+   - 載入至 state 並顯示（圖片以 `imageUrl` 讀取）
+   - **分享模式不寫入 localStorage**，防止污染本地編輯版本
+
+### 10.2 資料模型
+
+Item 類型同時支援兩種圖片格式：
+
+```ts
+export type Item = {
+  id: ItemId
+  content: string
+  imageBase64?: string   // 本地編輯時：Blob 轉 Base64，前端壓縮至 200×200
+  imageUrl?: string      // 分享時：Supabase Public URL
+}
+```
+
+分享前後的轉換過程：
+```
+本地編輯         分享轉換           資料庫儲存         分享檢視
+imageBase64  →  移除 Base64   →   imageUrl     →   渲染 imageUrl
+               上傳圖片儲存
+```
+
+### 10.3 實現要點
 
 **Supabase 設置：**
-- Bucket：`upload-images`（Public）
+- Bucket：`upload-images`（Public，無 RLS）
 - Table：`tier-lists`（欄位：id, data, created_at, updated_at）
+- 存儲路徑：`tierlist-{UUID}/{itemId}.webp`（每份分享用唯一資料夾區隔）
 
 **記憶體管理：**
-- CreateForm 用 Blob 儲存圖片，使用 ObjectURL 預覽
-- 提交時才轉 Base64，刪除時清理 ObjectURL
+- CreateForm 用 Blob 臨時儲存圖片，以 `URL.createObjectURL()` 預覽
+- 提交新增時才轉 Base64 寫入 state（減少記憶體占用）
+- 使用者點刪除時清理 ObjectURL（`URL.revokeObjectURL()`）
 
-**防止覆蓋：**
-```ts
-// 本地模式：檢查 localStorage 中的 shareId，有則更新該筆記錄
-// 分享模式：isSharedMode=true 時一律建立新記錄（防止 A 的分享被 B 覆蓋）
-```
+**分享模式隔離 localStorage：**
+- 新增 `isViewingSharedList` state 追蹤當前模式
+- localStorage useEffect 檢查：分享模式下跳過寫入
+- 依賴陣列：`[state, isViewingSharedList]`
+- 防止不同視窗的分享連結互相污染本地版本
 
 **路由設置：**
 ```tsx
-<Route path="/" element={<ListWrapper />} />           // 本地編輯
-<Route path="/share/:id" element={<ListWrapper />} />  // 分享檢視
+<Route path="/" element={<ListWrapper />} />           // 本地編輯模式
+<Route path="/share/:id" element={<ListWrapper />} />  // 分享檢視模式
 ```
 
-**UX 細節：**
-- 自動複製連結到剪貼板
-- Toast 通知成功/失敗
-- 分享期間 Button 停用顯示「分享中…」
+兩個路由共用相同元件，透過 `useParams()` 判斷模式。
 
-### 10.3 環境變數
+**UX 細節：**
+- ✅ 自動複製分享連結到剪貼板
+- ✅ Toast 通知：成功「連結已複製！」/ 失敗「分享失敗，請重試」
+- ✅ 分享期間 Button 停用，顯示「分享中…」加載狀態
+- ✅ 分享連結無時限，永久有效
+
+### 10.4 數據庫初始化
+
+部署前需在 Supabase 執行以下 SQL，開啟資料表和存儲桶的行級安全性 (RLS)：
+
+**tier-lists 表的 RLS 策略：**
+```sql
+-- 開啟 RLS 功能
+alter table public.tier_lists enable row level security;
+
+-- 允許匿名使用者讀取 (SELECT)
+create policy "Allow public read access"
+on public.tier_lists for select
+to anon
+using (true);
+
+-- 允許匿名使用者新增 (INSERT)
+create policy "Allow public insert access"
+on public.tier_lists for insert
+to anon
+with check (true);
+```
+
+**upload-images 存儲桶的 RLS 策略：**
+```sql
+-- 允許匿名使用者讀取存儲桶中的檔案
+create policy "Public Access"
+on storage.objects for select
+to anon
+using ( bucket_id = 'upload-images' );
+
+-- 允許匿名使用者上傳檔案到存儲桶
+create policy "Public Upload"
+on storage.objects for insert
+to anon
+with check ( bucket_id = 'upload-images' );
+```
+
+**執行步驟：**
+1. 進入 Supabase 控制台 → SQL Editor
+2. 複製上述 SQL 並執行
+3. 確認無錯誤訊息即可
+
+### 10.5 環境變數
 
 ```
 # .env.local（本地開發）
-VITE_SUPABASE_URL=...
-VITE_SUPABASE_ANON_KEY=...
+VITE_SUPABASE_URL=your_supabase_url
+VITE_SUPABASE_ANON_KEY=your_anon_key
 
-# Netlify：Site Settings > Build & deploy > Environment 中手動設置
+# Netlify：Site Settings > Build & deploy > Environment 中手動設置相同變數
 ```
+
+### 10.6 多視窗場景
+
+此架構的優勢：
+
+| 場景 | 行為 |
+|------|------|
+| 分頁 A 本地編輯 → 分頁 B 打開分享 | localStorage 獨立，互不干擾 ✅ |
+| 分頁 B 重整分享頁 | 從資料庫重新查詢，本地版本保留 ✅ |
+| 製作第二份表單並分享 | 新建獨立記錄，產生新連結 ✅ |
+| 多人分享到同一群組 | 每人的分享各自獨立，無衝突 ✅ |
 
 ## 11. 未來擴充方向
 
