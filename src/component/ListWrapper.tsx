@@ -25,6 +25,7 @@ import {
   UNRANKED_DROP_ID,
 } from "../utils/dndIds";
 import { supabase } from "../utils/supabaseClient";
+import { DefaultImages } from "../assets/DefaultImages";
 
 // 優先用 pointerWithin（游標是否在範圍內）偵測放置目標，
 // 解決 closestCenter 在空容器左半邊無法觸發的問題
@@ -76,10 +77,10 @@ const initialState: TierListState = {
     { id: "d4e5f6a7-b8c9-0123-defa-234567890123", name: "拉完了", color: "#ffffff", itemIds: ["b8c9d0e1-f2a3-4567-bcde-678901234567"] },
   ],
   items: {
-    "e5f6a7b8-c9d0-1234-efab-345678901234": { id: "e5f6a7b8-c9d0-1234-efab-345678901234", content: "" },
+    "e5f6a7b8-c9d0-1234-efab-345678901234": { id: "e5f6a7b8-c9d0-1234-efab-345678901234", content: "", imageBase64: DefaultImages.tier_list },
     "f6a7b8c9-d0e1-2345-fabc-456789012345": { id: "f6a7b8c9-d0e1-2345-fabc-456789012345", content: "點擊右上角的X即可刪除" },
-    "a7b8c9d0-e1f2-3456-abcd-567890123456": { id: "a7b8c9d0-e1f2-3456-abcd-567890123456", content: " (∠·ω )⌒★" },
-    "b8c9d0e1-f2a3-4567-bcde-678901234567": { id: "b8c9d0e1-f2a3-4567-bcde-678901234567", content: "分享功能已完成" },
+    "a7b8c9d0-e1f2-3456-abcd-567890123456": { id: "a7b8c9d0-e1f2-3456-abcd-567890123456", content: "Ciallo World" ,imageBase64: DefaultImages.ciallo },
+    "b8c9d0e1-f2a3-4567-bcde-678901234567": { id: "b8c9d0e1-f2a3-4567-bcde-678901234567", content: "這是一個由夯到拉產生器" },
   },
   unrankedItemIds: [
     "a7b8c9d0-e1f2-3456-abcd-567890123456",
