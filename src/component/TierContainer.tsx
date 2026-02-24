@@ -37,7 +37,7 @@ function TierRow({ tier, items, onDeleteItem, showImageLabel, isLast = false }: 
       className="flex min-h-20 flex-row @split:min-h-30 last:[&>div:nth-child(2)]:shadow-none"
     >
       <div
-        className={`flex w-1/5 min-w-18 max-w-28 shrink-0 items-center justify-center px-2 text-center text-lg font-bold @split:max-w-32 @split:text-3xl shadow-[inset_0_-1px_0_0_#000,inset_-1px_0_0_0_#000] @split:shadow-[inset_0_-2px_0_0_#000,inset_-2px_0_0_0_#000] ${isLast ? "shadow-[inset_-1px_0_0_0_#000] @split:shadow-[inset_-2px_0_0_0_#000]" : ""}`}
+        className={`flex w-1/5 min-w-18 max-w-28 shrink-0 items-center justify-center px-2 text-center text-lg font-bold @split:max-w-32 @split:text-3xl shadow-[inset_0_-1px_0_0_#000,inset_-1px_0_0_0_#000] @split:shadow-[inset_0_-2px_0_0_#000,inset_-2px_0_0_0_#000] ${isLast ? "!shadow-[inset_-1px_0_0_0_#000] @split:!shadow-[inset_-2px_0_0_0_#000]" : ""}`}
         style={{ backgroundColor: tier.color }}
       >
         {tier.name}
