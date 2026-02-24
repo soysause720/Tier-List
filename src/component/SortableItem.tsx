@@ -37,14 +37,13 @@ function SortableItem({ item, onDeleteItem, showImageLabel }: SortableItemProps)
       ref={setNodeRef}
       {...attributes}
       {...listeners}
-      onClick={handleClick}
       className={`relative self-start touch-none select-none ${isDragging ? "cursor-grabbing" : "cursor-grab"}`}
     >
       {/* 拖曳中顯示虛線佔位框，讓使用者知道空位在哪 */}
       {isDragging && (
         <div className="absolute inset-0 rounded border-2 border-dashed border-zinc-400/60 bg-zinc-200/40" />
       )}
-      <div className={isDragging ? "opacity-0" : ""}>
+      <div className={isDragging ? "opacity-0" : ""} onClick={handleClick}>
         <ItemComponent item={item} onDelete={onDeleteItem} isActive={isActive} showImageLabel={showImageLabel} />
       </div>
     </div>
